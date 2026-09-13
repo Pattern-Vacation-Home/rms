@@ -13,11 +13,11 @@ class BookingCheckoutReminderMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public function __construct(public Booking $booking, public float $balanceDue) {}
+    public function __construct(public Booking $booking, public float $balanceDue, public int $daysBeforeCheckout) {}
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'Your PATTERN stay ends in 3 days · '.$this->booking->booking_reference);
+        return new Envelope(subject: 'Your PATTERN stay ends in '.$this->daysBeforeCheckout.' days · '.$this->booking->booking_reference);
     }
 
     public function content(): Content
