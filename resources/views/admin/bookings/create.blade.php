@@ -2,7 +2,34 @@
 
 @section('content')
 @include('admin.bookings.partials.compact-style')
+<style>
+    .booking-create-heading { margin-bottom: 1.25rem; }
+    .booking-create-heading h3 { margin-bottom: .2rem; font-weight: 700; }
+    .booking-charge-preview { overflow-x: auto; }
+    .booking-charge-preview table { min-width: 440px; }
+    .booking-schedule-table { min-width: 860px; }
+    .booking-schedule-table th, .booking-schedule-table td { padding: .75rem .65rem; }
+    .booking-schedule-table .schedule-period { white-space: nowrap; }
+    .booking-schedule-table .period-rent { min-width: 120px; max-width: 150px; }
+    .booking-schedule-table .schedule-nights { display: block; font-size: .75rem; color: #718096; }
+    .booking-create-actions { display: flex; justify-content: flex-end; gap: .75rem; margin: 1.25rem 0; }
+    .booking-create-actions .btn { min-width: 140px; }
+    @media (max-width: 767px) {
+        .booking-create-actions { flex-direction: column-reverse; }
+        .booking-create-actions .btn { width: 100%; }
+        .booking-schedule-table { min-width: 0; }
+        .booking-schedule-table thead { display: none; }
+        .booking-schedule-table tbody, .booking-schedule-table tbody tr, .booking-schedule-table tbody td { display: block; width: 100%; }
+        .booking-schedule-table tbody tr { margin-bottom: .75rem; border: 1px solid #e5e9f2; border-radius: .6rem; padding: .8rem; }
+        .booking-schedule-table tbody td { border: 0; padding: .3rem 0; }
+        .booking-schedule-table tbody td[data-label]::before { content: attr(data-label); color: #718096; font-size: .76rem; display: block; }
+        .booking-schedule-table tbody .text-end { text-align: left !important; }
+        .booking-schedule-table .period-rent { max-width: none; }
+        .booking-schedule-table tfoot td { padding: .75rem; }
+    }
+</style>
 <div class="booking-workspace">
+<div class="booking-create-heading"><h3>Create Booking</h3><div class="text-muted">Enter the stay details, then review each invoice period before saving.</div></div>
 <form action="{{ route('admin.booking.store') }}" method="POST" enctype="multipart/form-data">
     @csrf
     <div class="row">
@@ -67,7 +94,7 @@
                     <div class="mb-3"><label class="form-label" for="cleaning_fee">Cleaning Fee <span class="badge bg-primary-subtle text-primary">+ 5% VAT</span></label><input type="number" step="0.01" min="0" id="cleaning_fee" name="cleaning_fee" value="{{ old('cleaning_fee', 0) }}" class="form-control booking-money"></div>
                     <div class="mb-3"><label class="form-label" for="agency_fee">Agency Fee <span class="badge bg-primary-subtle text-primary">+ 5% VAT</span></label><input type="number" step="0.01" min="0" id="agency_fee" name="agency_fee" value="{{ old('agency_fee', 0) }}" class="form-control booking-money"></div>
                     <div class="mb-3"><label class="form-label" for="security_deposit">Refundable security deposit (company held)</label><input type="number" step="0.01" min="0" id="security_deposit" name="security_deposit" value="{{ old('security_deposit', 0) }}" class="form-control booking-money"></div>
-                    <div class="table-responsive border rounded mt-3">
+                    <div class="table-responsive booking-charge-preview border rounded mt-3">
                         <table class="table table-sm align-middle mb-0">
                             <thead class="table-light"><tr><th>Charge</th><th class="text-end">Net</th><th class="text-center">VAT</th><th class="text-end">VAT Amount</th><th class="text-end">Total</th></tr></thead>
                             <tbody>
@@ -79,7 +106,7 @@
                             </tbody>
                             <tfoot class="table-light fw-semibold">
                                 <tr><td colspan="3">Total VAT</td><td class="text-end" id="vat_amount">0.00</td><td></td></tr>
-                                <tr><td colspan="4">Grand Total</td><td class="text-end"><span id="booking_total">0.00</span> AED</td></tr>
+                                <tr><td colspan="4">First invoice estimate</td><td class="text-end"><span id="booking_total">0.00</span> AED</td></tr>
                             </tfoot>
                         </table>
                         <input type="hidden" id="base_rent">
@@ -87,14 +114,10 @@
                 </div>
             </div>
 
-            <div class="card"><div class="card-header"><h4 class="card-title mb-1">Invoice schedule</h4><small class="text-muted">One invoice per 30 nights. Due date is the start of each period. Initial fees are charged once; DTCM repeats at 90-day renewal boundaries.</small></div><div class="card-body"><div id="invoice-schedule-message" class="text-muted small">Select check-in and checkout dates to preview invoices.</div><div class="table-responsive"><table class="table table-sm align-middle mb-0" id="invoice-schedule-table" hidden><thead><tr><th>Invoice</th><th>Period</th><th>Due</th><th style="min-width:130px">Rent (AED)</th><th class="text-end">VAT</th><th class="text-end">Fees</th><th class="text-end">Total</th></tr></thead><tbody id="invoice-schedule-body"></tbody><tfoot><tr class="table-light fw-bold"><td colspan="6">Total scheduled</td><td class="text-end" id="invoice-schedule-total">0.00</td></tr></tfoot></table></div>@error('period_rents')<div class="text-danger small">{{ $message }}</div>@enderror</div></div>
-
-            <div class="d-grid gap-2">
-                <button type="submit" class="btn btn-primary">Create Booking</button>
-                <a href="{{ route('admin.booking.index') }}" class="btn btn-danger">Cancel</a>
-            </div>
         </div>
     </div>
+    <div class="card mt-2"><div class="card-header"><h4 class="card-title mb-1">Invoice schedule</h4><small class="text-muted">One invoice per 30 nights. Each invoice is due at the start of its period. Initial fees are charged once; DTCM repeats at 90-day renewal boundaries.</small></div><div class="card-body"><div id="invoice-schedule-message" class="text-muted small mb-2">Select check-in and checkout dates to preview invoices.</div><div class="table-responsive"><table class="table align-middle mb-0 booking-schedule-table" id="invoice-schedule-table" hidden><thead class="table-light"><tr><th>Invoice</th><th>Stay period</th><th>Due date</th><th>Rent (AED)</th><th class="text-end">VAT</th><th class="text-end">Fees &amp; deposit</th><th class="text-end">Invoice total</th></tr></thead><tbody id="invoice-schedule-body"></tbody><tfoot><tr class="table-light fw-bold"><td colspan="6">Total scheduled</td><td class="text-end" id="invoice-schedule-total">0.00</td></tr></tfoot></table></div>@error('period_rents')<div class="text-danger small">{{ $message }}</div>@enderror</div></div>
+    <div class="booking-create-actions"><a href="{{ route('admin.booking.index') }}" class="btn btn-light">Cancel</a><button type="submit" class="btn btn-primary">Create Booking</button></div>
 </form>
 </div>
 @endsection
@@ -160,9 +183,10 @@
             const row = document.createElement('tr');
             row.dataset.length = length; row.dataset.first = index === 0 ? '1' : '0'; row.dataset.renewal = renewal ? '1' : '0';
             const title = index === 0 ? 'Original' : (renewal ? 'Renewal + DTCM' : 'Period ' + (index + 1));
-            row.innerHTML = '<td class="fw-semibold"></td><td></td><td></td><td><input type="number" step="0.01" min="0" max="99999999" class="form-control form-control-sm period-rent" name="period_rents['+index+']" required></td><td class="text-end period-vat"></td><td class="text-end period-fees"></td><td class="text-end fw-semibold period-total"></td>';
+            row.innerHTML = '<td class="fw-semibold"></td><td class="schedule-period"></td><td data-label="Due date"></td><td data-label="Rent (AED)"><input type="number" step="0.01" min="0" max="99999999" class="form-control form-control-sm period-rent" name="period_rents['+index+']" required></td><td data-label="VAT" class="text-end period-vat"></td><td data-label="Fees &amp; deposit" class="text-end period-fees"></td><td data-label="Invoice total" class="text-end fw-semibold period-total"></td>';
             row.children[0].textContent = title;
-            row.children[1].textContent = formatDate(from) + ' – ' + formatDate(to) + ' (' + length + ' nights)';
+            row.children[1].textContent = formatDate(from) + ' – ' + formatDate(to);
+            const nightsLabel = document.createElement('span'); nightsLabel.className = 'schedule-nights'; nightsLabel.textContent = length + ' nights'; row.children[1].append(nightsLabel);
             row.children[2].textContent = formatDate(from);
             row.querySelector('.period-rent').value = savedRents[index] ?? (money('rent_amount') * (nights <= 30 ? 1 : length / 30)).toFixed(2);
             row.querySelector('.period-rent').addEventListener('input', calculateScheduleTotals);
