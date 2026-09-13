@@ -37,8 +37,9 @@ class TenantController extends Controller
             ->latest()
             ->get();
         $activeBookings = $bookings->whereIn('status', ['confirmed', 'checked_in']);
+        $notifications = Auth::user()->notifications()->latest()->limit(10)->get();
 
-        return view('tenant.dashboard.index', compact('bookings', 'activeBookings'));
+        return view('tenant.dashboard.index', compact('bookings', 'activeBookings', 'notifications'));
     }
 
     public function booking(Booking $booking)

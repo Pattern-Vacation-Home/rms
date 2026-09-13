@@ -13,6 +13,18 @@
 </div>
 
 <div class="portal-grid">
+    @if($notifications->isNotEmpty())
+    <section class="portal-card" id="notices">
+        <h4>Notices</h4>
+        <div class="portal-list">
+            @foreach($notifications as $notice)
+            <a class="portal-list-item text-decoration-none text-dark" href="{{ data_get($notice->data, 'url', route('tenant.dashboard')) }}">
+                <div><strong>{{ data_get($notice->data, 'title', 'Booking update') }}</strong><p>{{ data_get($notice->data, 'message') }}</p></div>
+            </a>
+            @endforeach
+        </div>
+    </section>
+    @endif
     <section class="portal-card" id="stays">
         <h4>My Bookings</h4>
         <div class="portal-list">
