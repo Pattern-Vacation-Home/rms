@@ -26,6 +26,7 @@
         $rentVat = max(0, round((float)$invoice->vat_amount - $cleaningVat - $agencyVat, 2));
     @endphp
     <div class="top">
+        @if(file_exists(public_path('assets/images/pattern-bilingual-logo.png')))<img src="{{ public_path('assets/images/pattern-bilingual-logo.png') }}" alt="PATTERN" style="width:175px;max-height:54px;object-fit:contain;margin-bottom:7px">@endif
         <div class="brand">{{ \App\Support\AppSettings::get('invoice_establishment_name', 'PATTERN Vacation Homes Rental') }}</div>
         <div>{{ \App\Support\AppSettings::get('invoice_legal_name') }}</div>
         <div>{{ \App\Support\AppSettings::get('invoice_address') }}</div>
@@ -37,7 +38,7 @@
         <tr>
             <td>
                 <strong>Invoice No.</strong><br>{{ $invoice->invoice_number }}<br><br>
-                <strong>Issue Date</strong><br>{{ $invoice->issue_date?->format('d M Y') }}
+                <strong>Issue Date</strong><br>{{ $invoice->issue_date?->format('d M Y') }}@if($invoice->due_date)<br><br><strong>Due Date</strong><br>{{ $invoice->due_date->format('d M Y') }}@endif
             </td>
             <td>
                 <strong>Booking</strong><br>{{ $booking?->booking_reference }}<br><br>

@@ -25,6 +25,7 @@ class SendBookingCheckoutReminders extends Command
             Booking::query()->with(['property.building', 'invoices.payments'])
                 ->whereDate('check_out', $checkoutDate)
                 ->whereIn('status', ['confirmed', 'checked_in'])
+                ->whereDoesntHave('renewals', fn ($query) => $query->whereNotIn('status', ['cancelled', 'checked_out']))
                 ->where(fn ($query) => $query->whereNull($dateColumn)
                     ->orWhereDate($dateColumn, '!=', $checkoutDate))
                 ->chunkById(100, function ($bookings) use (&$sent, $checkoutDate, $daysBeforeCheckout, $dateColumn, $timeColumn) {

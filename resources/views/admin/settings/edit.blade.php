@@ -129,6 +129,8 @@
                 <div class="tab-pane fade" id="accounting-panel" role="tabpanel" aria-labelledby="accounting-tab">
                     <div class="card"><div class="card-header bg-light-subtle"><h4 class="card-title mb-0">Accounting & VAT</h4></div><div class="card-body">
                         <div class="row g-3"><div class="col-md-6"><label class="form-label" for="default_vat_rate">Default VAT Rate</label><div class="input-group"><input type="number" step="0.01" min="0" max="100" class="form-control" id="default_vat_rate" name="default_vat_rate" value="{{ $value('default_vat_rate', 5) }}" required><span class="input-group-text">%</span></div><small class="text-muted">Used automatically for expense cost and sale VAT calculations.</small></div></div>
+                        <hr><h5>DTCM fee by unit type</h5><p class="text-muted small">Set the approved fee for each type. Applied on the first invoice and every new 90-day contract period; saved invoices keep their original amount.</p>
+                        <div class="row g-3">@foreach(\App\Support\BookingInvoiceSchedule::DTCM_KEYS as $unitType => $settingKey)<div class="col-md-4"><label class="form-label" for="{{ $settingKey }}">{{ $unitType }}</label><div class="input-group"><span class="input-group-text">AED</span><input type="number" step="0.01" min="0" class="form-control" id="{{ $settingKey }}" name="{{ $settingKey }}" value="{{ $value($settingKey) }}" placeholder="Not set"></div></div>@endforeach</div>
                     </div></div>
                 </div>
 

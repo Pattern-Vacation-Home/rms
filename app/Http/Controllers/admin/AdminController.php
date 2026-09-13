@@ -50,6 +50,7 @@ class AdminController extends Controller
             ->with(['property.building'])
             ->whereHas('property')
             ->whereNotIn('status', ['checked_out', 'cancelled'])
+            ->whereDoesntHave('renewals', fn ($query) => $query->whereNotIn('status', ['cancelled', 'checked_out']))
             ->whereBetween('check_out', [$today->toDateString(), $today->copy()->addDays(3)->toDateString()])
             ->orderBy('check_out')
             ->orderBy('check_out_time')

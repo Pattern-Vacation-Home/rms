@@ -33,7 +33,7 @@
                             <select id="property_id" name="property_id" class="form-control">
                                 <option value="">Select Unit</option>
                                 @foreach($properties as $property)
-                                    <option value="{{ $property->id }}" @selected(old('property_id') === $property->id) data-rent="{{ $property->rent ?? 0 }}" data-management-fee-percent="{{ $property->management_fee_percent ?? 0 }}">{{ $property->name }} - {{ optional($property->building)->building_name ?? 'No Building' }}</option>
+                                    <option value="{{ $property->id }}" @selected(old('property_id') === $property->id) data-rent="{{ $property->rent ?? 0 }}" data-dtcm="{{ \App\Support\BookingInvoiceSchedule::dtcmRate($property) ?? '' }}" data-unit-type="{{ $property->category }}" data-management-fee-percent="{{ $property->management_fee_percent ?? 0 }}">{{ $property->name }} - {{ optional($property->building)->building_name ?? 'No Building' }}</option>
                                 @endforeach
                             </select>
                             @error('property_id')<span class="text-danger">{{ $message }}</span>@enderror
@@ -58,12 +58,12 @@
             <div class="card">
                 <div class="card-header"><h4 class="card-title">Invoice Charges</h4><small class="text-muted">Enter rent only. Other fees and deposit are separate. Saving does not record payment.</small></div>
                 <div class="card-body">
-                    <div class="mb-3"><label class="form-label" for="rent_amount">Rent amount entered (AED)</label><input type="number" step="0.01" min="0" id="rent_amount" name="rent_amount" value="{{ old('rent_amount', 0) }}" class="form-control booking-money"></div>
+                    <div class="mb-3"><label class="form-label" for="rent_amount">Rent per 30 nights (AED)</label><input type="number" step="0.01" min="0" id="rent_amount" name="rent_amount" value="{{ old('rent_amount', 0) }}" class="form-control booking-money"><small class="text-muted">Used to suggest each invoice rent. You can edit every period below.</small></div>
                     <div class="btn-group w-100 mb-3" role="group" aria-label="VAT treatment">
                         <input type="radio" class="btn-check booking-money" id="vat_included" name="vat_included" value="1" @checked(old('vat_included', false))><label class="btn btn-outline-primary" for="vat_included">VAT Included</label>
                         <input type="radio" class="btn-check booking-money" id="vat_added" name="vat_included" value="0" @checked(!(old('vat_included', false)))><label class="btn btn-outline-primary" for="vat_added">Add VAT</label>
                     </div>
-                    <div class="mb-3"><label class="form-label" for="dtcm_fee">DTCM Fee <span class="badge bg-light text-muted">No VAT</span></label><input type="number" step="0.01" min="0" id="dtcm_fee" name="dtcm_fee" value="{{ old('dtcm_fee', 0) }}" class="form-control booking-money"></div>
+                    <div class="mb-3"><label class="form-label" for="dtcm_fee">DTCM Fee per contract <span class="badge bg-light text-muted">No VAT</span></label><input type="number" step="0.01" min="0" id="dtcm_fee" name="dtcm_fee" value="{{ old('dtcm_fee', 0) }}" class="form-control booking-money"><small class="text-muted">Suggested from unit type settings. Charged on first period and each 90-day renewal.</small>@error('dtcm_fee')<span class="text-danger d-block">{{ $message }}</span>@enderror</div>
                     <div class="mb-3"><label class="form-label" for="cleaning_fee">Cleaning Fee <span class="badge bg-primary-subtle text-primary">+ 5% VAT</span></label><input type="number" step="0.01" min="0" id="cleaning_fee" name="cleaning_fee" value="{{ old('cleaning_fee', 0) }}" class="form-control booking-money"></div>
                     <div class="mb-3"><label class="form-label" for="agency_fee">Agency Fee <span class="badge bg-primary-subtle text-primary">+ 5% VAT</span></label><input type="number" step="0.01" min="0" id="agency_fee" name="agency_fee" value="{{ old('agency_fee', 0) }}" class="form-control booking-money"></div>
                     <div class="mb-3"><label class="form-label" for="security_deposit">Refundable security deposit (company held)</label><input type="number" step="0.01" min="0" id="security_deposit" name="security_deposit" value="{{ old('security_deposit', 0) }}" class="form-control booking-money"></div>
@@ -86,6 +86,8 @@
                     </div>
                 </div>
             </div>
+
+            <div class="card"><div class="card-header"><h4 class="card-title mb-1">Invoice schedule</h4><small class="text-muted">One invoice per 30 nights. Due date is the start of each period. Initial fees are charged once; DTCM repeats at 90-day renewal boundaries.</small></div><div class="card-body"><div id="invoice-schedule-message" class="text-muted small">Select check-in and checkout dates to preview invoices.</div><div class="table-responsive"><table class="table table-sm align-middle mb-0" id="invoice-schedule-table" hidden><thead><tr><th>Invoice</th><th>Period</th><th>Due</th><th style="min-width:130px">Rent (AED)</th><th class="text-end">VAT</th><th class="text-end">Fees</th><th class="text-end">Total</th></tr></thead><tbody id="invoice-schedule-body"></tbody><tfoot><tr class="table-light fw-bold"><td colspan="6">Total scheduled</td><td class="text-end" id="invoice-schedule-total">0.00</td></tr></tfoot></table></div>@error('period_rents')<div class="text-danger small">{{ $message }}</div>@enderror</div></div>
 
             <div class="d-grid gap-2">
                 <button type="submit" class="btn btn-primary">Create Booking</button>
@@ -128,11 +130,67 @@
     document.getElementById('vat_included').addEventListener('change', calculateBookingTotal);
     document.getElementById('property_id').addEventListener('change', (event) => {
         const rent = event.target.selectedOptions[0]?.dataset.rent;
+        const dtcm = event.target.selectedOptions[0]?.dataset.dtcm;
         if (rent && Number(rent) > 0) {
             document.getElementById('rent_amount').value = Number(rent).toFixed(2);
-            calculateBookingTotal();
         }
+        if (dtcm !== undefined && dtcm !== '') document.getElementById('dtcm_fee').value = Number(dtcm).toFixed(2);
+        calculateBookingTotal(); renderInvoiceSchedule();
     });
+    const selectedDtcm = document.getElementById('property_id').selectedOptions[0]?.dataset.dtcm;
+    if (selectedDtcm !== undefined && selectedDtcm !== '' && !@json(old('dtcm_fee'))) document.getElementById('dtcm_fee').value = Number(selectedDtcm).toFixed(2);
+    const scheduleDate = (date) => new Date(date + 'T00:00:00Z');
+    const asDate = (date) => date.toISOString().slice(0, 10);
+    const addDays = (date, days) => new Date(date.getTime() + days * 86400000);
+    const formatDate = (date) => new Intl.DateTimeFormat('en-GB', {day:'2-digit', month:'short', year:'numeric', timeZone:'UTC'}).format(date);
+    function renderInvoiceSchedule() {
+        const startValue = document.getElementById('check_in').value, endValue = document.getElementById('check_out').value;
+        const table = document.getElementById('invoice-schedule-table'), body = document.getElementById('invoice-schedule-body');
+        const message = document.getElementById('invoice-schedule-message');
+        body.replaceChildren();
+        if (!startValue || !endValue) { table.hidden = true; message.textContent = 'Select check-in and checkout dates to preview invoices.'; return; }
+        const start = scheduleDate(startValue), end = scheduleDate(endValue);
+        const nights = Math.round((end - start) / 86400000);
+        if (nights < 1 || nights > 1095) { table.hidden = true; message.textContent = 'Stay must be between 1 night and 3 years.'; return; }
+        table.hidden = false; message.textContent = nights + ' nights · ' + Math.ceil(nights / 30) + ' separate invoice(s)';
+        const savedRents = @json(old('period_rents', []));
+        for (let offset = 0, index = 0; offset < nights; offset += 30, index++) {
+            const length = Math.min(30, nights - offset), from = addDays(start, offset), to = addDays(start, offset + length);
+            const renewal = offset > 0 && offset % 90 === 0;
+            const row = document.createElement('tr');
+            row.dataset.length = length; row.dataset.first = index === 0 ? '1' : '0'; row.dataset.renewal = renewal ? '1' : '0';
+            const title = index === 0 ? 'Original' : (renewal ? 'Renewal + DTCM' : 'Period ' + (index + 1));
+            row.innerHTML = '<td class="fw-semibold"></td><td></td><td></td><td><input type="number" step="0.01" min="0" max="99999999" class="form-control form-control-sm period-rent" name="period_rents['+index+']" required></td><td class="text-end period-vat"></td><td class="text-end period-fees"></td><td class="text-end fw-semibold period-total"></td>';
+            row.children[0].textContent = title;
+            row.children[1].textContent = formatDate(from) + ' – ' + formatDate(to) + ' (' + length + ' nights)';
+            row.children[2].textContent = formatDate(from);
+            row.querySelector('.period-rent').value = savedRents[index] ?? (money('rent_amount') * (nights <= 30 ? 1 : length / 30)).toFixed(2);
+            row.querySelector('.period-rent').addEventListener('input', calculateScheduleTotals);
+            body.append(row);
+        }
+        calculateScheduleTotals();
+    }
+    function calculateScheduleTotals() {
+        const included = document.getElementById('vat_included').checked;
+        const dtcm = money('dtcm_fee'), cleaning = money('cleaning_fee'), agency = money('agency_fee'), deposit = money('security_deposit');
+        let grand = 0;
+        document.querySelectorAll('#invoice-schedule-body tr').forEach(row => {
+            const input = Number(row.querySelector('.period-rent').value) || 0;
+            const rentVat = included ? input - input / 1.05 : input * .05;
+            const first = row.dataset.first === '1', renewal = row.dataset.renewal === '1';
+            const fees = (first || renewal ? dtcm : 0) + (first ? cleaning + agency + deposit : 0);
+            const vat = rentVat + (first ? (cleaning + agency) * .05 : 0);
+            const total = (included ? input : input + rentVat) + fees + (first ? (cleaning + agency) * .05 : 0);
+            row.querySelector('.period-vat').textContent = vat.toFixed(2);
+            row.querySelector('.period-fees').textContent = fees.toFixed(2);
+            row.querySelector('.period-total').textContent = total.toFixed(2);
+            grand += total;
+        });
+        document.getElementById('invoice-schedule-total').textContent = grand.toFixed(2) + ' AED';
+    }
+    ['check_in', 'check_out', 'rent_amount'].forEach(id => document.getElementById(id).addEventListener('change', renderInvoiceSchedule));
+    document.querySelectorAll('.booking-money').forEach(input => input.addEventListener('input', calculateScheduleTotals));
     calculateBookingTotal();
+    renderInvoiceSchedule();
 </script>
 @endsection

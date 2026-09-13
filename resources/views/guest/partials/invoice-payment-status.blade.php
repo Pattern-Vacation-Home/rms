@@ -7,7 +7,7 @@
         <tbody>
         @forelse($booking->invoices as $invoice)
             <tr>
-                <td><strong>{{ $invoice->invoice_number }}</strong><small class="d-block text-muted">{{ $invoice->period_from?->format('d M Y') }} – {{ $invoice->period_to?->format('d M Y') }}</small></td>
+                <td><strong>{{ $invoice->invoice_number }}</strong><small class="d-block text-muted">{{ $invoice->period_from?->format('d M Y') }} – {{ $invoice->period_to?->format('d M Y') }}</small>@if($invoice->due_date)<small class="d-block text-primary">Due {{ $invoice->due_date->format('d M Y') }}</small>@endif</td>
                 <td class="text-end">AED {{ number_format((float) $invoice->total_amount, 2) }}</td>
                 <td class="text-end text-success">AED {{ number_format($invoice->paid_amount, 2) }}</td>
                 <td class="text-end {{ $invoice->balance_due > 0 ? 'text-danger' : 'text-success' }}">AED {{ number_format($invoice->balance_due, 2) }}</td>

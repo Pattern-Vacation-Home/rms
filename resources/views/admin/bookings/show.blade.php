@@ -16,6 +16,14 @@
 @section('content')
 @include('admin.bookings.partials.compact-style')
 <div class="booking-workspace">
+@if($booking->renewed_from_booking_id || $booking->renewals()->exists())
+<div class="alert alert-info d-flex flex-wrap align-items-center gap-2">
+    <strong>Linked contracts:</strong>
+    @if($booking->renewedFrom)<a href="{{ route('admin.booking.show', $booking->renewedFrom) }}" class="btn btn-sm btn-outline-primary">Previous · {{ $booking->renewedFrom->booking_reference }}</a>@endif
+    @foreach($booking->renewals as $renewal)<a href="{{ route('admin.booking.show', $renewal) }}" class="btn btn-sm btn-outline-primary">Next · {{ $renewal->booking_reference }}</a>@endforeach
+    <span class="small">Each contract is at most 90 nights, with its own period invoices and DTCM fee.</span>
+</div>
+@endif
 @php
     $contractDays = $booking->nights;
     $remainingContractDays = max(0, 90 - $contractDays);
@@ -32,7 +40,7 @@
 <div class="booking-page-head" role="region" aria-label="Booking details and actions">
     <div><h3>{{ $booking->booking_reference }}</h3><div class="breadcrumb-note"><a href="{{ route('admin.booking.index') }}">Bookings</a> / Booking details</div></div>
     <div class="booking-head-actions">
-        <div class="dropdown"><button class="btn btn-light dropdown-toggle" data-bs-toggle="dropdown"><iconify-icon icon="solar:documents-broken" class="align-middle fs-18"></iconify-icon> Documents</button><div class="dropdown-menu dropdown-menu-end"><a href="{{ route('admin.booking.invoice', $booking) }}" class="dropdown-item">Original booking invoice</a><a href="{{ route('admin.booking.confirmation', $booking) }}" class="dropdown-item">Overall booking confirmation</a>@if(\Illuminate\Support\Facades\Route::has('admin.booking.complete-pack') && $booking->invoices->isNotEmpty() && $booking->invoices->every(fn($item) => $item->status === 'paid' && $item->balance_due <= 0))<a href="{{ route('admin.booking.complete-pack', $booking) }}" class="dropdown-item fw-semibold text-success">Complete booking pack</a>@endif<a href="{{ route('admin.booking.history', $booking) }}" class="dropdown-item">History & corrections</a></div></div>
+        <div class="dropdown"><button class="btn btn-light dropdown-toggle" data-bs-toggle="dropdown"><iconify-icon icon="solar:documents-broken" class="align-middle fs-18"></iconify-icon> Documents</button><div class="dropdown-menu dropdown-menu-end"><a href="{{ route('admin.booking.invoice', $booking) }}" class="dropdown-item">First period tax invoice</a><a href="{{ route('admin.booking.confirmation', $booking) }}" class="dropdown-item">Overall booking confirmation</a>@if(\Illuminate\Support\Facades\Route::has('admin.booking.complete-pack') && $booking->invoices->isNotEmpty() && $booking->invoices->every(fn($item) => $item->status === 'paid' && $item->balance_due <= 0))<a href="{{ route('admin.booking.complete-pack', $booking) }}" class="dropdown-item fw-semibold text-success">Complete booking pack</a>@endif<a href="{{ route('admin.booking.history', $booking) }}" class="dropdown-item">History & corrections</a></div></div>
         <a href="{{ route('admin.booking.edit', $booking) }}" class="btn btn-outline-dark"><iconify-icon icon="solar:pen-2-broken" class="align-middle fs-18"></iconify-icon> Edit booking</a>
         @if($latestInvoice && $latestInvoice->balance_due > 0)<button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#paymentModal{{ $latestInvoice->id }}"><iconify-icon icon="solar:card-transfer-broken" class="align-middle fs-18"></iconify-icon> Record payment</button>@endif
         @if($outstandingInvoices->count() > 1)<button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#combinedPaymentModal"><iconify-icon icon="solar:layers-minimalistic-broken" class="align-middle fs-18"></iconify-icon> Combined payment</button>@endif
@@ -96,7 +104,7 @@
                                         <div><span>Deposit</span><strong>AED {{ number_format((float)(($invoice->fees ?? [])['Security Deposit'] ?? 0),2) }}</strong></div>
                                         <div class="border-top pt-2 mt-2"><span>Total</span><strong>AED {{ number_format((float)$invoice->total_amount,2) }}</strong></div>
                                     </div></div></td>
-                                <td>{{ $invoice->period_from?->format('d M Y') }}<br><span class="small text-muted">to {{ $invoice->period_to?->format('d M Y') }}</span></td>
+                                <td>{{ $invoice->period_from?->format('d M Y') }}<br><span class="small text-muted">to {{ $invoice->period_to?->format('d M Y') }}</span>@if($invoice->due_date)<small class="d-block text-primary">Due {{ $invoice->due_date->format('d M Y') }}</small>@endif</td>
                                 <td>AED {{ number_format((float) $invoice->total_amount, 2) }}</td>
                                 <td class="text-success">AED {{ number_format($invoice->paid_amount, 2) }}</td>
                                 <td class="{{ $invoice->balance_due > 0 ? 'text-danger' : 'text-success' }}">AED {{ number_format($invoice->balance_due, 2) }}</td>
@@ -153,13 +161,15 @@
                     <strong>{{ $contractDays }} of 90 contract days used.</strong><br>
                     @if($remainingContractDays > 0)
                         {{ $remainingContractDays }} days remain before renewal is required. Maximum checkout: {{ $contractLimitDate?->format('d M Y') }}.
+                    @elseif($booking->renewals->isNotEmpty())
+                        The next contract has already been scheduled. Its first invoice includes the new DTCM fee.
                     @else
                         The 90-day limit is reached. Use Renew Contract; a new DTCM fee is required.
                     @endif
                 </div>
                 <div class="d-grid gap-2 mb-3">
                     @if($remainingContractDays > 0)<button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#extendBookingModal"><iconify-icon icon="solar:calendar-add-broken" class="align-middle fs-18"></iconify-icon> Extend current period</button>@endif
-                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#renewBookingModal"><iconify-icon icon="solar:restart-circle-broken" class="align-middle fs-18"></iconify-icon> Renew contract</button>
+                    @if($booking->renewals->isEmpty())<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#renewBookingModal"><iconify-icon icon="solar:restart-circle-broken" class="align-middle fs-18"></iconify-icon> Renew contract</button>@endif
                 </div>
                 <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
                     <span class="badge {{ $booking->workflow_status_class }} text-white">{{ $booking->workflow_status_label }}</span>
@@ -317,7 +327,7 @@
                         </div>
                         <div class="col-lg-4">
                             <label for="renew_rent_amount" class="form-label">Rent</label>
-                            <input type="number" step="0.01" min="0" id="renew_rent_amount" name="rent_amount" class="form-control" value="{{ old('rent_amount', $booking->rent_amount) }}" required>
+                            <input type="number" step="0.01" min="0" id="renew_rent_amount" name="rent_amount" class="form-control" value="{{ old('rent_amount', $defaultExtensionRent) }}" required>
                         </div>
                         <div class="col-lg-4">
                             <label for="renew_dtcm_fee" class="form-label">DTCM Fee</label>
