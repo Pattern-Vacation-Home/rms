@@ -15,6 +15,7 @@
     .booking-flow-step strong, .booking-flow-step small { display: block; }
     .booking-flow-step small { font-size: .75rem; font-weight: 400; }
     .booking-step-panel { max-width: 1040px; margin: 0 auto; }
+    .booking-step-panel[data-booking-step="3"] { max-width: none; }
     .booking-step-panel[hidden] { display: none !important; }
     .booking-step-panel .card { margin-bottom: 1rem; }
     .booking-charges-card .card-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 1rem 1.5rem; }
@@ -32,6 +33,10 @@
     .booking-schedule-table th, .booking-schedule-table td { padding: .75rem .65rem; }
     .booking-schedule-table .schedule-period { white-space: nowrap; }
     .booking-schedule-table .period-rent { min-width: 120px; max-width: 150px; }
+    .booking-step-panel[data-booking-step="3"] .booking-schedule-table .period-rent { min-width: 155px; max-width: 190px; font-size: 1.12rem; font-weight: 750; color: #192641; border-color: #cbd2e2; background: #fafbff; }
+    .booking-step-panel[data-booking-step="3"] .booking-schedule-table .period-total { font-size: 1.1rem; color: #27366a; }
+    .booking-step-panel[data-booking-step="3"] .booking-schedule-table tbody tr:hover { background: #fafbff; }
+    .booking-step-panel[data-booking-step="3"] .booking-schedule-table tfoot { font-size: 1.08rem; }
     .booking-schedule-table .schedule-nights { display: block; font-size: .75rem; color: #718096; }
     .booking-create-actions { display: flex; justify-content: flex-end; gap: .75rem; max-width: 1040px; margin: 1.25rem auto; }
     .booking-create-actions .btn { min-width: 140px; }

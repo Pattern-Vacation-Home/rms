@@ -66,6 +66,32 @@ class TenantMaintenanceTest extends TestCase
         $this->assertSame(0, BookingTask::count());
     }
 
+    public function test_complaint_routes_technical_issues_to_maintainer_and_billing_to_admin(): void
+    {
+        $booking = $this->booking();
+        $tenant = BookingTenantProfile::sync($booking);
+        $tenant->forceFill(['tenant_profile_required' => false])->save();
+        $maintainer = User::factory()->create(['role' => 'maintainer', 'is_active' => true]);
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+
+        $this->actingAs($tenant)->post(route('tenant.complaints.store'), [
+            'booking_id' => $booking->id, 'complaint_type' => 'air_conditioning',
+            'description' => 'The bedroom AC is not cooling properly.',
+        ])->assertRedirect(route('tenant.maintenance.index'))->assertSessionHasNoErrors();
+        $technical = BookingTask::where('category', 'complaint:air_conditioning')->sole();
+        $this->assertSame((string) $maintainer->id, (string) $technical->assigned_to);
+        $this->assertSame('maintenance', $technical->type);
+
+        $this->post(route('tenant.complaints.store'), [
+            'booking_id' => $booking->id, 'complaint_type' => 'billing',
+            'description' => 'Please review the amount on my latest invoice.',
+        ])->assertRedirect(route('tenant.maintenance.index'))->assertSessionHasNoErrors();
+        $billing = BookingTask::where('category', 'complaint:billing')->sole();
+        $this->assertSame((string) $admin->id, (string) $billing->assigned_to);
+        $this->assertSame('other', $billing->type);
+        $this->get(route('tenant.maintenance.index'))->assertOk()->assertSee('Air conditioning complaint')->assertSee('Billing or invoice complaint');
+    }
+
     public function test_guest_cannot_see_another_guests_requests_and_uploads_are_validated(): void
     {
         $booking = $this->booking();

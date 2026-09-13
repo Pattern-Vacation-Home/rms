@@ -224,8 +224,10 @@ class BookingController extends Controller
             return $created;
         });
 
-        $bookings->each(fn ($booking) => \App\Support\BookingTenantProfile::sync($booking));
+        $temporaryPassword = null;
+        foreach ($bookings as $booking) \App\Support\BookingTenantProfile::sync($booking, $temporaryPassword);
         $this->markPropertyStatus($bookings->first(), 'booked');
+        \App\Support\BookingGuestCommunications::created($bookings, $temporaryPassword);
 
         return redirect()->route('admin.booking.show', $bookings->first()->id)
             ->with('success', count($periods).' period invoices across '.$bookings->count().' linked contract(s) created successfully.');
@@ -368,7 +370,7 @@ class BookingController extends Controller
 
         $this->ensurePropertyCanBeBooked($booking->property_id, $booking->check_in?->toDateString(), $validatedData['check_out'], $booking->id);
 
-        DB::transaction(function () use ($booking, $validatedData, $additionalRent, $oldCheckOut) {
+        $createdInvoice = DB::transaction(function () use ($booking, $validatedData, $additionalRent, $oldCheckOut) {
             $booking->update([
                 'check_out' => $validatedData['check_out'],
                 'check_out_time' => $validatedData['check_out_time'] ?? $booking->check_out_time,
@@ -388,7 +390,10 @@ class BookingController extends Controller
                 'description' => 'Extended until '.$booking->check_out?->format('d M Y').'. Separate invoice '.$invoice->invoice_number.' created for AED '.number_format((float) $invoice->total_amount, 2).'.',
             ]);
             $this->recordOwnerIncomeForInvoice($invoice);
+            return $invoice;
         });
+
+        \App\Support\BookingGuestCommunications::invoiceCreated($createdInvoice);
 
         return back()->with('success', 'Booking extended. A separate extension invoice and payment balance were created.');
     }
@@ -463,6 +468,7 @@ class BookingController extends Controller
         $this->recordOwnerIncomeForInvoice($invoice);
         $this->markPropertyStatus($newBooking, 'booked');
         \App\Support\BookingTenantProfile::sync($newBooking);
+        \App\Support\BookingGuestCommunications::invoiceCreated($invoice);
 
         return redirect()->route('admin.booking.show', $newBooking->id)
             ->with('success', 'Booking renewed successfully.');
@@ -554,6 +560,8 @@ class BookingController extends Controller
             }
         });
 
+        \App\Support\BookingGuestCommunications::paymentRecorded($invoice, (float) $data['amount']);
+
         return back()->with('success', 'Payment recorded against '.$invoice->invoice_number.'.');
     }
 
@@ -582,7 +590,8 @@ class BookingController extends Controller
         }
         $receiptPath = $this->uploadFile($request, 'receipt', 'booking_payment_proofs');
 
-        DB::transaction(function () use ($booking, $data, $receiptPath) {
+        $notifiedPayments = [];
+        DB::transaction(function () use ($booking, $data, $receiptPath, &$notifiedPayments) {
             $booking = Booking::whereKey($booking->id)->lockForUpdate()->firstOrFail();
             $invoices = BookingInvoice::where('booking_id', $booking->id)->whereIn('status', ['unpaid', 'partial'])
                 ->orderBy('issue_date')->orderBy('created_at')->lockForUpdate()->get();
@@ -639,6 +648,7 @@ class BookingController extends Controller
                 \App\Support\OwnerReceiptPosting::post($payment);
                 \App\Support\InvoiceSettlement::post($payment);
                 $invoice->update(['status' => $invoice->fresh()->balance_due <= 0 ? 'paid' : 'partial']);
+                $notifiedPayments[] = [$invoice->id, (float) $amount];
                 $summary[] = $invoice->invoice_number.' AED '.number_format($amount, 2);
                 $remaining = round($remaining - $amount, 2);
             }
@@ -647,6 +657,10 @@ class BookingController extends Controller
             $account = BankAccount::whereKey($data['bank_account_id'])->lockForUpdate()->first();
             $account?->forceFill(['current_balance' => (float) $account->opening_balance + (float) $account->entries()->whereIn('approval_status', ['posted', 'approved', 'paid'])->selectRaw('COALESCE(SUM(credit - debit),0) as movement')->value('movement')])->save();
         });
+
+        foreach ($notifiedPayments as [$invoiceId, $amount]) {
+            \App\Support\BookingGuestCommunications::paymentRecorded(BookingInvoice::findOrFail($invoiceId), $amount);
+        }
 
         return back()->with('success', 'Combined payment recorded and allocated across outstanding invoices.');
     }

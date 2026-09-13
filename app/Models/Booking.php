@@ -76,6 +76,11 @@ class Booking extends BaseModel
         return $this->belongsTo(User::class, 'agent_id');
     }
 
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'tenant_id');
+    }
+
     public function histories(): HasMany
     {
         return $this->hasMany(BookingHistory::class)->latest();

@@ -18,9 +18,9 @@ class BookingTenantProfile
         ]));
     }
 
-    public static function sync(Booking $booking): ?User
+    public static function sync(Booking $booking, ?string &$temporaryPassword = null): ?User
     {
-        return DB::transaction(function () use ($booking) {
+        return DB::transaction(function () use ($booking, &$temporaryPassword) {
             $booking = Booking::whereKey($booking->id)->lockForUpdate()->firstOrFail();
             $linkedTenant = (bool) $booking->tenant_id;
             if ($booking->tenant_id) {
@@ -40,8 +40,10 @@ class BookingTenantProfile
             if (! $linkedTenant) {
                 $tenant = User::withTrashed()->whereRaw('LOWER(email) = ?', [$email])->first();
                 if (! $tenant) {
+                    $candidatePassword = Str::random(14);
                     $tenant = User::firstOrCreate(['email' => $email], ['name' => $booking->guest_name, 'phone' => $booking->guest_phone,
-                        'eid_passport_no' => $booking->guest_passport_id_no, 'password' => Str::random(64), 'role' => 'tenant']);
+                        'eid_passport_no' => $booking->guest_passport_id_no, 'password' => $candidatePassword, 'role' => 'tenant']);
+                    if ($tenant->wasRecentlyCreated) $temporaryPassword = $candidatePassword;
                 }
             }
             $passport = strtoupper(trim($booking->guest_passport_id_no ?? ''));

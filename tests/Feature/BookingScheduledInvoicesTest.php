@@ -2,11 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Mail\BookingGuestUpdateMail;
 use App\Models\Booking;
 use App\Models\Property;
 use App\Models\User;
 use App\Support\AppSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
+use App\Notifications\BookingGuestUpdate;
 use Tests\TestCase;
 
 class BookingScheduledInvoicesTest extends TestCase
@@ -15,6 +19,8 @@ class BookingScheduledInvoicesTest extends TestCase
 
     public function test_long_booking_creates_separate_period_invoices_and_renews_dtcm_at_day_ninety(): void
     {
+        Mail::fake();
+        Notification::fake();
         $admin = User::factory()->create(['role' => 'admin']);
         $owner = User::factory()->create(['role' => 'landlord']);
         $property = Property::create(['landlord_id' => $owner->id, 'name' => '502', 'category' => '1 BHK', 'status' => 'vacant', 'management_fee_percent' => 10]);
@@ -27,7 +33,7 @@ class BookingScheduledInvoicesTest extends TestCase
             'rent_amount' => 6000, 'vat_included' => 0, 'dtcm_fee' => 0,
             'cleaning_fee' => 200, 'agency_fee' => 100, 'security_deposit' => 500,
             'period_rents' => [6000, 6000, 6000, 2000],
-        ])->assertSessionHasNoErrors();
+        ])->assertRedirect()->assertSessionHasNoErrors();
 
         $contracts = Booking::where('guest_email', 'guest@example.com')->orderBy('check_in')->get();
         $this->assertCount(2, $contracts);
@@ -45,5 +51,7 @@ class BookingScheduledInvoicesTest extends TestCase
         $this->assertSame('7415.00', $invoices[0]->total_amount);
         $this->assertSame('2400.00', $invoices[3]->total_amount);
         $this->assertEqualsWithDelta($invoices->sum('total_amount'), $contracts->sum('total_amount'), .01);
+        Mail::assertSent(BookingGuestUpdateMail::class, fn ($mail) => $mail->event === 'created' && count($mail->schedule) === 4 && filled($mail->temporaryPassword) && str_contains($mail->render(), 'Your guest app access'));
+        Notification::assertSentTo(User::findOrFail($contracts[0]->tenant_id), BookingGuestUpdate::class);
     }
 }

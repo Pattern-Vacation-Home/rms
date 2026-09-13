@@ -29,7 +29,32 @@
         @endif
     </section>
     <section class="guest-panel">
-        <h2>My requests</h2><p class="guest-muted">Status comes directly from Task Manager. Internal staff notes and charges are not shown.</p>
+        <h2>Make a complaint</h2>
+        <p>Choose a topic and describe the issue. Technical topics go to operations; billing and service topics go to administration.</p>
+        @if($bookings->isNotEmpty())
+        <form method="POST" action="{{ route('tenant.complaints.store') }}" onsubmit="this.querySelector('button[type=submit]').disabled=true">
+            @csrf
+            <label for="complaint_booking_id">Unit / booking</label>
+            <select id="complaint_booking_id" name="booking_id" required>
+                @foreach($bookings as $booking)
+                <option value="{{ $booking->id }}" @selected(old('booking_id') ? old('booking_id') === $booking->id : request('unit') === $booking->property_id)>{{ $booking->property->building?->building_name ?? 'No building' }} — {{ $booking->property->name }}</option>
+                @endforeach
+            </select>
+            <label for="complaint_type">Complaint type</label>
+            <select id="complaint_type" name="complaint_type" required>
+                <option value="">Choose a topic</option>
+                @foreach(['air_conditioning' => 'Air conditioning', 'plumbing' => 'Plumbing', 'electrical' => 'Electrical', 'internet' => 'Internet', 'appliance' => 'Appliance', 'billing' => 'Billing or invoice', 'service' => 'Service', 'other' => 'Other'] as $value => $label)
+                <option value="{{ $value }}" @selected(old('complaint_type') === $value)>{{ $label }}</option>
+                @endforeach
+            </select>
+            <label for="complaint_description">Description</label>
+            <textarea id="complaint_description" name="description" rows="4" minlength="10" maxlength="3000" placeholder="Tell us what happened and how we can help" required>{{ old('description') }}</textarea>
+            <button type="submit" class="guest-button">Send Complaint</button>
+        </form>
+        @endif
+    </section>
+    <section class="guest-panel">
+        <h2>My requests &amp; complaints</h2><p class="guest-muted">Status comes directly from Task Manager. Internal staff notes and charges are not shown.</p>
         <div style="overflow-x:auto"><table class="guest-table"><thead><tr><th>Request</th><th>Unit</th><th>Status</th></tr></thead><tbody>
         @forelse($tasks as $task)
             <tr><td><strong>{{ $task->title }}</strong><div class="guest-muted">{{ $task->task_display_number }}<br>{{ $task->created_at->format('d M Y H:i') }}</div><details><summary>Request details</summary><p style="white-space:pre-wrap">{{ $task->description }}</p><span class="guest-muted">Priority: {{ $task->priority_label }}</span></details></td>

@@ -9,6 +9,7 @@ Route::middleware(['auth', 'role:tenant', \App\Http\Middleware\CompleteTenantPro
     Route::get('/dashboard', [TenantController::class, 'dashboard'])->name('dashboard');
     Route::get('/maintenance', [\App\Http\Controllers\Tenants\MaintenanceController::class, 'index'])->name('maintenance.index');
     Route::post('/maintenance', [\App\Http\Controllers\Tenants\MaintenanceController::class, 'store'])->middleware('throttle:10,1')->name('maintenance.store');
+    Route::post('/complaints', [\App\Http\Controllers\Tenants\MaintenanceController::class, 'storeComplaint'])->middleware('throttle:10,1')->name('complaints.store');
     Route::get('/bookings/{booking}', [TenantController::class, 'booking'])->name('booking.show');
     Route::post('/bookings/{booking}/inspections/{type}/start', [TenantController::class, 'startInspection'])->name('inspection.start');
     Route::post('/inspections/{inspection}/draft', [\App\Http\Controllers\Maintainers\InspectionDraftController::class, 'tenantSave'])->name('inspection.draft');

@@ -7,6 +7,7 @@ use App\Models\Property;
 use App\Models\User;
 use App\Support\BookingTenantProfile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class BookingTenantProfileTest extends TestCase
@@ -20,6 +21,20 @@ class BookingTenantProfileTest extends TestCase
 
         return Booking::create(['property_id' => $unit->id, 'booking_reference' => 'BK-'.uniqid(), 'invoice_number' => 'INV-'.uniqid(), 'guest_name' => 'Guest One', 'guest_email' => $email,
             'guest_phone' => '12345', 'guest_passport_id_no' => 'P100', 'check_in' => '2026-10-01', 'check_out' => '2026-10-05', 'rent_amount' => 1000, 'status' => 'confirmed']);
+    }
+
+    public function test_new_guest_gets_one_temporary_password_without_resetting_an_existing_account(): void
+    {
+        $booking = $this->booking();
+        $temporaryPassword = null;
+        $tenant = BookingTenantProfile::sync($booking, $temporaryPassword);
+        $this->assertNotNull($temporaryPassword);
+        $this->assertTrue(Hash::check($temporaryPassword, $tenant->password));
+
+        $again = null;
+        BookingTenantProfile::sync($booking, $again);
+        $this->assertNull($again);
+        $this->assertTrue(Hash::check($temporaryPassword, $tenant->fresh()->password));
     }
 
     public function test_guest_is_copied_without_duplicate_accounts_and_completes_profile_at_login(): void
