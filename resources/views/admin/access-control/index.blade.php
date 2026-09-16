@@ -4,8 +4,9 @@
 <style>
     .access-hero{background:linear-gradient(135deg,#102b4e,#4035a8);border-radius:18px;padding:25px;color:#fff;display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:20px;box-shadow:0 12px 28px rgba(22,43,83,.13)}
     .access-hero h2{color:#fff;margin:0 0 6px}.access-hero p{margin:0;color:#dce5f5}.access-stat{min-width:120px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:12px 16px;text-align:center}.access-stat strong{display:block;font-size:24px}.access-tabs{display:flex;gap:8px;margin-bottom:18px}.access-tab{border:1px solid #dfe4ef;background:#fff;padding:10px 17px;border-radius:9px;color:#58657a}.access-tab.active{background:#5b47db;color:#fff;border-color:#5b47db}.access-panel[hidden]{display:none!important}
-    .permission-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.permission-row{display:grid;grid-template-columns:minmax(160px,1fr) 82px 82px;align-items:center;gap:8px;border:1px solid #e5e9f2;border-radius:10px;padding:11px 13px}.permission-module{display:flex;gap:10px;align-items:center;font-weight:600}.permission-module i{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;background:#eeeaff;color:#5b47db;font-size:17px}.permission-toggle{text-align:center;font-size:12px;color:#718096}.permission-toggle input{display:block;margin:0 auto 4px;width:17px;height:17px}.role-card{border:1px solid #e5e9f2;border-radius:13px;padding:16px;height:100%;background:#fff}.role-card h5{margin-bottom:4px}.role-chip{display:inline-block;background:#eef2f8;border-radius:99px;padding:4px 9px;margin:3px 2px;font-size:11px;color:#506078}.staff-avatar{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#ece9ff;color:#5b47db;font-weight:700}.access-badge{border-radius:99px;padding:5px 9px;font-size:11px;font-weight:600}.access-badge.active{background:#ddf5e7;color:#14794d}.access-badge.inactive{background:#ffe4e5;color:#b93c45}
-    @media(max-width:850px){.access-hero{align-items:flex-start;flex-direction:column}.access-hero>div:last-child{display:flex;width:100%;gap:8px}.access-stat{min-width:0;flex:1}.permission-grid{grid-template-columns:1fr}.permission-row{grid-template-columns:1fr 60px 60px}}
+    .permission-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.permission-row{display:grid;grid-template-columns:minmax(0,1fr) 52px 62px;align-items:center;gap:7px;border:1px solid #e5e9f2;border-radius:10px;padding:11px 12px;min-width:0}.permission-module{display:flex;gap:10px;align-items:center;font-weight:600;min-width:0}.permission-module span{line-height:1.25}.permission-module i{width:32px;height:32px;min-width:32px;border-radius:8px;display:grid;place-items:center;background:#eeeaff;color:#5b47db;font-size:17px}.permission-toggle{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-size:11px;color:#718096;margin:0;white-space:nowrap}.permission-toggle input{display:block;margin:0 0 4px;width:17px;height:17px}.role-card{border:1px solid #e5e9f2;border-radius:13px;padding:16px;height:100%;background:#fff}.role-card h5{margin-bottom:4px}.role-chip{display:inline-block;background:#eef2f8;border-radius:99px;padding:4px 9px;margin:3px 2px;font-size:11px;color:#506078}.staff-avatar{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#ece9ff;color:#5b47db;font-weight:700}.access-badge{border-radius:99px;padding:5px 9px;font-size:11px;font-weight:600}.access-badge.active{background:#ddf5e7;color:#14794d}.access-badge.inactive{background:#ffe4e5;color:#b93c45}
+    @media(max-width:1400px){.permission-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:850px){.access-hero{align-items:flex-start;flex-direction:column}.access-hero>div:last-child{display:flex;width:100%;gap:8px}.access-stat{min-width:0;flex:1}.permission-grid{grid-template-columns:1fr}.permission-row{grid-template-columns:minmax(0,1fr) 52px 62px}}
 </style>
 
 <div class="access-hero">
@@ -19,16 +20,16 @@
 
 <section class="access-panel" data-access-panel="roles">
     <div class="row g-3">
-        <div class="col-xl-4"><div class="card h-100"><div class="card-header"><h4 class="card-title mb-1">Create a role</h4><small class="text-muted">Start with a name, then choose View and Manage access.</small></div><div class="card-body">
+        <div class="col-12"><div class="card"><div class="card-header"><h4 class="card-title mb-1">Create a role</h4><small class="text-muted">Start with a name, then choose View and Manage access.</small></div><div class="card-body">
             <form method="POST" action="{{ route('admin.access-control.roles.store') }}">@csrf
-                <label class="form-label" for="new-role-name">Role name</label><input class="form-control mb-3" id="new-role-name" name="name" placeholder="For example: Booking Supervisor" required>
+                <div class="row"><div class="col-lg-5"><label class="form-label" for="new-role-name">Role name</label><input class="form-control mb-3" id="new-role-name" name="name" placeholder="For example: Booking Supervisor" required></div></div>
                 @include('admin.access-control.permission-grid', ['prefix' => 'new'])
-                <button class="btn btn-primary w-100 mt-3"><i class="ri-add-line me-1"></i>Create Role</button>
+                <div class="d-flex justify-content-end"><button class="btn btn-primary mt-3 px-4"><i class="ri-add-line me-1"></i>Create Role</button></div>
             </form>
         </div></div></div>
-        <div class="col-xl-8"><div class="row g-3">
+        <div class="col-12"><div class="row g-3">
             @foreach($roles as $role)
-            <div class="col-lg-6"><div class="role-card">
+            <div class="col-xl-4 col-md-6"><div class="role-card">
                 <div class="d-flex justify-content-between align-items-start gap-2"><div><h5>{{ $role->name }}</h5><small class="text-muted">{{ $role->users_count }} staff member(s)</small></div>@if($role->name === 'Super Administrator')<span class="badge bg-warning-subtle text-warning">Protected</span>@else<button class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#role-{{ $role->id }}"><i class="ri-pencil-line"></i></button>@endif</div>
                 <div class="mt-3">@foreach($modules as $key => [$label,$icon])@if($role->hasPermissionTo($key.'.view'))<span class="role-chip">{{ $label }} · {{ $role->hasPermissionTo($key.'.manage') ? 'Manage' : 'View' }}</span>@endif @endforeach</div>
             </div></div>
