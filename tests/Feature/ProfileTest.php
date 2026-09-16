@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ProfileTest extends TestCase
@@ -12,13 +14,34 @@ class ProfileTest extends TestCase
 
     public function test_profile_page_is_displayed(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['role' => 'admin']);
 
         $response = $this
             ->actingAs($user)
             ->get('/profile');
 
         $response->assertOk();
+        $response->assertSee('Personal information');
+        $response->assertSee('Change password');
+    }
+
+    public function test_profile_contact_and_photo_can_be_updated(): void
+    {
+        Storage::fake(config('hhms.media_disk', 'public'));
+        $user = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($user)->patch('/profile', [
+            'name' => 'New Name',
+            'email' => $user->email,
+            'phone' => '+971 50 123 4567',
+            'profile_photo' => UploadedFile::fake()->image('portrait.jpg'),
+        ])->assertSessionHasNoErrors()->assertRedirect('/profile');
+
+        $user->refresh();
+        $this->assertSame('New Name', $user->name);
+        $this->assertSame('+971 50 123 4567', $user->phone);
+        $this->assertNotNull($user->profile_photo);
+        Storage::disk(config('hhms.media_disk', 'public'))->assertExists(\App\Support\MediaStorage::path($user->profile_photo));
     }
 
     public function test_profile_information_can_be_updated(): void
