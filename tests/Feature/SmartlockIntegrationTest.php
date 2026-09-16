@@ -70,6 +70,8 @@ class SmartlockIntegrationTest extends TestCase
         $this->assertSame(9876, (int) $access->remote_passcode_id);
         $this->assertMatchesRegularExpression('/^\d{6}$/', $access->passcode);
         $this->assertDatabaseMissing('booking_lock_accesses', ['passcode' => $access->passcode]);
+        $this->actingAs($admin)->get(route('admin.booking.show', $booking))
+            ->assertOk()->assertSee('Guest Door Access')->assertSee($invoice->invoice_number);
         $this->actingAs($tenant)->get(route('tenant.booking.show', $booking))
             ->assertOk()->assertSee($access->passcode)->assertHeader('Cache-Control', 'no-store, private');
         $this->actingAs($admin)->post(route('admin.smartlocks.revoke', $access))
