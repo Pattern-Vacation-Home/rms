@@ -35,6 +35,8 @@
                     </select>
                 </div>
 
+                <div class="col-12"><div class="border rounded-3 p-3" style="background:#f4f7ff"><div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2"><div><strong><i class="ri-door-lock-line me-1 text-primary"></i> Smart lock access</strong><div class="small text-muted">Choose a lock synced from Pattern VH’s TTLock account.</div></div><a href="{{ route('admin.smartlocks.index') }}" class="btn btn-sm btn-outline-primary">Manage &amp; Sync Locks</a></div><select class="form-select" name="smartlock_id" id="smartlock_id"><option value="">No smart lock attached</option>@foreach($smartlocks as $lock)<option value="{{ $lock->id }}" @selected(old('smartlock_id',$property->smartlock_id)===$lock->id) @disabled($lock->property && $lock->property->id !== $property->id)>{{ $lock->alias ?: $lock->name }} · {{ $lock->remote_id }}{{ $lock->property && $lock->property->id !== $property->id ? ' — assigned to '.$lock->property->name : '' }}</option>@endforeach</select>@error('smartlock_id')<div class="text-danger small mt-1">{{ $message }}</div>@enderror</div></div>
+
                 @php
                     $oldOwnerIds = old('owner_ids');
                     $oldOwnerShares = old('owner_shares');

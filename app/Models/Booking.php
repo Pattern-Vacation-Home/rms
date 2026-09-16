@@ -101,6 +101,11 @@ class Booking extends BaseModel
         return $this->hasMany(BookingInvoice::class)->latest();
     }
 
+    public function lockAccesses(): HasMany
+    {
+        return $this->hasMany(BookingLockAccess::class);
+    }
+
     public function renewedFrom(): BelongsTo
     {
         return $this->belongsTo(self::class, 'renewed_from_booking_id');

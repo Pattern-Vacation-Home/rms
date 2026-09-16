@@ -20,6 +20,17 @@
     <!-- Unit Info -->
     @include('admin.properties.partials.property-info')
 
+    <div class="card mt-4" style="border:1px solid #dce5f5;border-radius:14px;overflow:hidden">
+        <div class="card-body p-4">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                <div><h4 class="card-title mb-1"><i class="ri-door-lock-line text-primary me-1"></i> Smart lock</h4><div class="small text-muted">Optional. Link one synced TTLock device to this unit.</div></div>
+                <a href="{{ route('admin.smartlocks.index') }}" class="btn btn-sm btn-outline-primary">Manage &amp; Sync Locks</a>
+            </div>
+            <select class="form-select" name="smartlock_id"><option value="">No smart lock attached</option>@foreach($smartlocks as $lock)<option value="{{ $lock->id }}" @selected(old('smartlock_id')===$lock->id) @disabled($lock->property)>{{ $lock->alias ?: $lock->name }} · {{ $lock->remote_id }}{{ $lock->property ? ' — assigned to '.$lock->property->name : '' }}</option>@endforeach</select>
+            @error('smartlock_id')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
+        </div>
+    </div>
+
     <!-- Amenities & Features -->
     @include('admin.properties.partials.amenities-security-features')
 

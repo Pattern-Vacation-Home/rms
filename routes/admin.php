@@ -21,6 +21,7 @@ use App\Http\Controllers\admin\SettingsController;
 use App\Http\Controllers\admin\SoftwareUpdateController;
 use App\Http\Controllers\admin\DocumentOcrController;
 use App\Http\Controllers\admin\AccessControlController;
+use App\Http\Controllers\admin\SmartlockController;
 
 
 
@@ -28,6 +29,12 @@ use App\Http\Controllers\admin\AccessControlController;
 Route::middleware(['auth', 'role:admin', 'admin.permission'])->prefix('admin')->name('admin.')->group(function () {
 Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
 Route::get('/access-control', [AccessControlController::class, 'index'])->name('access-control.index');
+Route::get('/smartlocks', [SmartlockController::class, 'index'])->name('smartlocks.index');
+Route::post('/smartlocks/connection', [SmartlockController::class, 'connection'])->name('smartlocks.connection');
+Route::post('/smartlocks/sync', [SmartlockController::class, 'sync'])->name('smartlocks.sync');
+Route::put('/smartlocks/units/{property}', [SmartlockController::class, 'assign'])->name('smartlocks.assign');
+Route::post('/smartlocks/bookings/{booking}/issue', [SmartlockController::class, 'issue'])->name('smartlocks.issue');
+Route::post('/smartlocks/access/{access}/revoke', [SmartlockController::class, 'revoke'])->name('smartlocks.revoke');
 Route::post('/access-control/roles', [AccessControlController::class, 'storeRole'])->name('access-control.roles.store');
 Route::put('/access-control/roles/{role}', [AccessControlController::class, 'updateRole'])->name('access-control.roles.update');
 Route::delete('/access-control/roles/{role}', [AccessControlController::class, 'destroyRole'])->name('access-control.roles.destroy');

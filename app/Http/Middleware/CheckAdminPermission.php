@@ -15,6 +15,7 @@ class CheckAdminPermission
         'accounting' => 'accounting', 'agent' => 'agents', 'maintainer' => 'maintainers',
         'settings' => 'administration', 'software-update' => 'administration',
         'access-control' => 'administration', 'document-ocr' => 'administration',
+        'smartlocks' => 'administration',
     ];
 
     public function handle(Request $request, Closure $next): Response
@@ -26,6 +27,7 @@ class CheckAdminPermission
         $routeName = (string) $request->route()?->getName();
         $segment = explode('.', str_replace('admin.', '', $routeName))[0] ?? '';
         $module = self::ROUTE_MODULES[$segment] ?? 'administration';
+        if (in_array($routeName, ['admin.smartlocks.issue', 'admin.smartlocks.revoke'], true)) $module = 'bookings';
         $action = in_array($request->method(), ['GET', 'HEAD'], true) ? 'view' : 'manage';
         abort_unless($user->can($module.'.'.$action) || ($action === 'view' && $user->can($module.'.manage')), 403,
             'You do not have permission to access this module.');

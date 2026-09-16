@@ -45,9 +45,10 @@ class TenantController extends Controller
     public function booking(Booking $booking)
     {
         $this->authorizeBooking($booking);
-        $booking->load(['property.building', 'inspections.items', 'invoices.payments.bankAccount']);
+        $booking->load(['property.building', 'inspections.items', 'invoices.payments.bankAccount', 'lockAccesses.invoice']);
 
-        return view('tenant.bookings.show', compact('booking'));
+        return response()->view('tenant.bookings.show', compact('booking'))
+            ->header('Cache-Control', 'no-store, private');
     }
 
     public function startInspection(Booking $booking, string $type)

@@ -23,6 +23,16 @@
             </div>
         </section>
 
+        @if($booking->property?->smartlock)
+        @php
+            $activeDoorAccess = $booking->status !== 'checked_out' ? $booking->lockAccesses->first(fn($access) => !$access->revoked_at && $access->starts_at <= now() && $access->ends_at > now() && !$access->invoice?->legacy_owner_settled && $access->invoice?->balance_due <= 0) : null;
+        @endphp
+        <section class="tenant-section" style="background:linear-gradient(135deg,#102b45,#303aa4);border-radius:18px;padding:20px;color:#fff;box-shadow:0 12px 25px #172a5b20"><div style="display:flex;align-items:center;gap:12px"><span style="width:42px;height:42px;border-radius:12px;background:#ffffff25;display:grid;place-items:center;font-size:21px"><i class="ri-door-lock-line"></i></span><div><h3 style="color:white;margin:0">Door Access</h3><small style="color:#d5e3fb">{{ $booking->property?->building?->building_name ?? 'Your unit' }} · {{ $booking->property?->name }}</small></div></div>
+            @if($activeDoorAccess)<p style="color:#d8e4f8;margin:18px 0 5px">Your current door passcode</p><div style="font-size:31px;font-weight:800;letter-spacing:.28em">{{ $activeDoorAccess->passcode }}</div><small style="color:#d8e4f8">Valid until {{ $activeDoorAccess->ends_at->copy()->timezone('Asia/Dubai')->format('d M Y, H:i') }} (Dubai time)</small>
+            @else<p style="color:#d8e4f8;margin:18px 0 0">Your door code will appear here when your paid stay period starts and access is issued. Contact reception if you need help.</p>@endif
+        </section>
+        @endif
+
         <section class="tenant-section">
             <h3>Inspections</h3>
             @php

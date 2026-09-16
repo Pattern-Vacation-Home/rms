@@ -12,6 +12,7 @@ use App\Support\MediaStorage;
 use App\Support\PdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class PropertyController extends Controller
 {
@@ -205,8 +206,9 @@ class PropertyController extends Controller
     {
         $landlords = User::where('role', 'landlord')->get();
         $buildings = Building::all();
+        $smartlocks = Smartlock::with('property')->orderBy('alias')->orderBy('name')->get();
 
-        return view('admin.properties.create', compact('landlords', 'buildings'));
+        return view('admin.properties.create', compact('landlords', 'buildings', 'smartlocks'));
     }
 
     public function store(Request $request)
@@ -306,6 +308,10 @@ class PropertyController extends Controller
         // Ensure UUID for unit ID
         $validated['id'] = Str::uuid()->toString();
 
+        if (filled($validated['smartlock_id'] ?? null) && Property::where('smartlock_id', $validated['smartlock_id'])->exists()) {
+            throw ValidationException::withMessages(['smartlock_id' => 'This lock is already attached to another unit.']);
+        }
+
         $property = Property::create($validated);
         $this->syncOwnerShares($property, $request);
         $this->syncUtilityAccounts($property, $request);
@@ -325,8 +331,9 @@ class PropertyController extends Controller
         $property->load(['ownerShares.owner', 'utilityAccounts']);
         $landlords = User::where('role', 'landlord')->get();
         $buildings = Building::all();
+        $smartlocks = Smartlock::with('property')->orderBy('alias')->orderBy('name')->get();
 
-        return view('admin.properties.edit', compact('property', 'landlords', 'buildings'));
+        return view('admin.properties.edit', compact('property', 'landlords', 'buildings', 'smartlocks'));
     }
 
     public function update(Request $request, Property $property)
@@ -338,6 +345,7 @@ class PropertyController extends Controller
             'owner_shares' => 'nullable|array',
             'owner_shares.*' => 'nullable|numeric|min:0|max:100',
             'building_id' => 'required|exists:buildings,id',
+            'smartlock_id' => 'nullable|exists:smartlocks,id',
             'name' => 'required|string|max:255',
             'status' => 'required|in:available,booked,under_cleaning,under_maintenance',
             'category' => 'nullable|string|max:255',
@@ -368,6 +376,9 @@ class PropertyController extends Controller
         ]);
 
         unset($validated['utility_accounts']);
+        if (filled($validated['smartlock_id'] ?? null) && Property::where('smartlock_id', $validated['smartlock_id'])->whereKeyNot($property->id)->exists()) {
+            throw ValidationException::withMessages(['smartlock_id' => 'This lock is already attached to another unit.']);
+        }
         $this->applyUnitTypeDefaults($validated);
 
         $property->update($validated);

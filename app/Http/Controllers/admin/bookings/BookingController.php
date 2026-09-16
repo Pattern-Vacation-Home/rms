@@ -17,10 +17,12 @@ use App\Support\MediaStorage;
 use App\Support\BookingInvoiceSchedule;
 use App\Support\AppSettings;
 use App\Support\PdfRenderer;
+use App\Support\TtlockClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class BookingController extends Controller
 {
@@ -482,6 +484,7 @@ class BookingController extends Controller
             'histories',
             'inspections.items',
             'invoices.payments.bankAccount',
+            'lockAccesses',
             'renewedFrom', 'renewals',
         ]);
 
@@ -737,7 +740,20 @@ class BookingController extends Controller
         });
         $request->session()->forget('checkout_confirmation.'.$booking->id);
 
-        return back()->with('success', 'Check out completed and tasks created.');
+        $revokeFailed = false;
+        foreach ($booking->lockAccesses()->whereNull('revoked_at')->with('smartlock')->get() as $access) {
+            try {
+                app(TtlockClient::class)->deletePasscode((int) $access->smartlock->remote_id, (int) $access->remote_passcode_id);
+                $access->update(['revoked_at' => now()]);
+            } catch (Throwable $exception) {
+                report($exception);
+                $revokeFailed = true;
+            }
+        }
+
+        return back()->with($revokeFailed ? 'error' : 'success', $revokeFailed
+            ? 'Check out completed, but TTLock could not confirm every code was revoked. Verify the lock and revoke remaining codes manually.'
+            : 'Check out completed, tasks created, and guest door access revoked.');
     }
 
     public function prepareCheckout(Request $request, Booking $booking)

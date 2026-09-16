@@ -33,6 +33,9 @@ class AppSettings
         'aws_secret_access_key',
         'aws_textract_access_key_id',
         'aws_textract_secret_access_key',
+        'ttlock_client_secret',
+        'ttlock_access_token',
+        'ttlock_refresh_token',
     ];
 
     public static function all(): array
@@ -174,6 +177,7 @@ class AppSettings
             str_starts_with($key, 'mail_') => 'email',
             str_starts_with($key, 'whatsapp_') => 'whatsapp',
             str_starts_with($key, 'sms_') => 'sms',
+            str_starts_with($key, 'ttlock_') => 'smartlocks',
             str_starts_with($key, 'aws_textract_') => 'ocr',
             str_starts_with($key, 'aws_'), $key === 'media_disk' => 'storage',
             $key === 'default_vat_rate', str_starts_with($key, 'dtcm_fee_') => 'accounting',

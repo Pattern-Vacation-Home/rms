@@ -179,6 +179,7 @@
                         <li class="sub-nav-item"><a class="sub-nav-link" href="{{ route('admin.access-control.index') }}">Roles &amp; Permissions</a></li>
                         @endif
                         <li class="sub-nav-item"><a class="sub-nav-link" href="{{ route('admin.settings.edit') }}">Settings</a></li>
+                        @if(auth()->user()?->hasRole('Super Administrator') || auth()->user()?->can('administration.view'))<li class="sub-nav-item"><a class="sub-nav-link" href="{{ route('admin.smartlocks.index') }}">Smart Locks</a></li>@endif
                         <li class="sub-nav-item"><a class="sub-nav-link" href="{{ route('admin.software-update.index') }}">Update Software</a></li>
                     </ul>
                 </div>

@@ -6,4 +6,5 @@ return [
     's3_temporary_url_minutes' => env('HHMS_S3_TEMPORARY_URL_MINUTES', 60),
     'logo_path' => null,
     'favicon_path' => null,
+    'ttlock_api_base' => env('TTLOCK_API_BASE', 'https://api.sciener.com'),
 ];
