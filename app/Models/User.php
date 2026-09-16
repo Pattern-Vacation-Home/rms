@@ -12,11 +12,12 @@ use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Schema;
 
 class User extends Authenticatable
 
     {
-        use HasFactory, Notifiable;
+        use HasFactory, Notifiable, HasRoles;
     use SoftDeletes;
 
 
@@ -30,6 +31,11 @@ class User extends Authenticatable
         static::creating(function ($model) {
             if (empty($model->{$model->getKeyName()})) {
                 $model->{$model->getKeyName()} = Str::uuid()->toString();
+            }
+        });
+        static::created(function ($model) {
+            if ($model->role === 'admin' && Schema::hasTable('roles') && \Spatie\Permission\Models\Role::where('name', 'Super Administrator')->exists()) {
+                $model->assignRole('Super Administrator');
             }
         });
     }

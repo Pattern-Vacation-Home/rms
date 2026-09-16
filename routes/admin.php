@@ -20,12 +20,19 @@ use App\Http\Controllers\admin\accounting\AccountingController;
 use App\Http\Controllers\admin\SettingsController;
 use App\Http\Controllers\admin\SoftwareUpdateController;
 use App\Http\Controllers\admin\DocumentOcrController;
+use App\Http\Controllers\admin\AccessControlController;
 
 
 
 // Admin Routes
-Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'role:admin', 'admin.permission'])->prefix('admin')->name('admin.')->group(function () {
 Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
+Route::get('/access-control', [AccessControlController::class, 'index'])->name('access-control.index');
+Route::post('/access-control/roles', [AccessControlController::class, 'storeRole'])->name('access-control.roles.store');
+Route::put('/access-control/roles/{role}', [AccessControlController::class, 'updateRole'])->name('access-control.roles.update');
+Route::delete('/access-control/roles/{role}', [AccessControlController::class, 'destroyRole'])->name('access-control.roles.destroy');
+Route::post('/access-control/users', [AccessControlController::class, 'storeUser'])->name('access-control.users.store');
+Route::put('/access-control/users/{staff}', [AccessControlController::class, 'updateUser'])->name('access-control.users.update');
 Route::get('/properties/{property}/guest-qr', [\App\Http\Controllers\Tenants\GuestAccessController::class, 'poster'])->name('property.guest-qr');
 Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
 Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');

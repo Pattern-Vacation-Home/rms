@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Register the 'role' middleware alias
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
+            'admin.permission' => \App\Http\Middleware\CheckAdminPermission::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [
@@ -23,4 +24,3 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions) {
         //
     })->create();
-
