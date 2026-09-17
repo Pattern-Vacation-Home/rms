@@ -44,7 +44,7 @@
         <a href="{{ route('admin.booking.edit', $booking) }}" class="btn btn-outline-dark"><iconify-icon icon="solar:pen-2-broken" class="align-middle fs-18"></iconify-icon> Edit booking</a>
         @if($latestInvoice && $latestInvoice->balance_due > 0)<button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#paymentModal{{ $latestInvoice->id }}"><iconify-icon icon="solar:card-transfer-broken" class="align-middle fs-18"></iconify-icon> Record payment</button>@endif
         @if($outstandingInvoices->count() > 1)<button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#combinedPaymentModal"><iconify-icon icon="solar:layers-minimalistic-broken" class="align-middle fs-18"></iconify-icon> Combined payment</button>@endif
-        <div class="dropdown"><button class="btn btn-light" data-bs-toggle="dropdown" aria-label="More booking actions"><iconify-icon icon="solar:menu-dots-bold"></iconify-icon></button><div class="dropdown-menu dropdown-menu-end"><a class="dropdown-item" href="{{ route('admin.booking.history', $booking) }}">View history</a><div class="dropdown-divider"></div><form action="{{ route('admin.booking.destroy', $booking) }}" method="POST" onsubmit="return confirm('Delete this booking? Bookings with financial or deposit history cannot be deleted.');">@csrf @method('DELETE')<button class="dropdown-item text-danger">Delete booking</button></form></div></div>
+        <div class="dropdown"><button class="btn btn-light" data-bs-toggle="dropdown" aria-label="More booking actions"><iconify-icon icon="solar:menu-dots-bold"></iconify-icon></button><div class="dropdown-menu dropdown-menu-end"><a class="dropdown-item" href="{{ route('admin.booking.history', $booking) }}">View history</a><div class="dropdown-divider"></div><button type="button" class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deleteBookingModal">Delete booking</button></div></div>
     </div>
 </div>
 <section class="booking-summary" aria-label="Booking financial summary">
@@ -502,6 +502,16 @@
 <div class="col-md-6"><label class="form-label">Bank transaction reference</label><input class="form-control" name="reference" required maxlength="150"></div><div class="col-md-6"><label class="form-label">Transfer proof</label><input class="form-control" type="file" name="receipt" accept=".pdf,.jpg,.jpeg,.png"></div><div class="col-12"><label class="form-label">Notes</label><textarea class="form-control" name="notes" rows="2"></textarea></div></div></div>
 <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button class="btn btn-success">Record & Allocate Transfer</button></div></form></div></div>
 @endif
+
+<div class="modal fade" id="deleteBookingModal" tabindex="-1" aria-labelledby="deleteBookingTitle" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><form class="modal-content" method="POST" action="{{ route('admin.booking.destroy', $booking) }}">@csrf @method('DELETE')
+    <div class="modal-header"><h5 class="modal-title" id="deleteBookingTitle">Permanently delete booking</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body"><div class="alert alert-danger small">This removes this booking's invoices, payments, deposit records, owner statement entries, ledger transactions, linked expenses, tasks and inspections. Bank and owner balances will be recalculated. This cannot be undone.</div>
+        <p class="small mb-3">Booking: <strong>{{ $booking->booking_reference }}</strong></p>
+        <div class="mb-3"><label class="form-label" for="deleteBookingReference">Type the booking number</label><input class="form-control" id="deleteBookingReference" name="booking_reference" required autocomplete="off" placeholder="{{ $booking->booking_reference }}"></div>
+        <div class="mb-3"><label class="form-label" for="deleteBookingReason">Reason for deletion</label><textarea class="form-control" id="deleteBookingReason" name="reason" required minlength="10" maxlength="1000" rows="2"></textarea></div>
+        <div><label class="form-label" for="deleteBookingPassword">Your password</label><input class="form-control" id="deleteBookingPassword" type="password" name="current_password" required autocomplete="current-password"></div>
+    </div><div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button class="btn btn-danger" type="submit">Delete booking and linked records</button></div>
+</form></div></div>
 
 <div class="modal fade" id="checkoutConfirmModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
     <form method="POST" action="{{ route('admin.booking.check-out', $booking) }}">@csrf

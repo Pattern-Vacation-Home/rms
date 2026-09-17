@@ -14,12 +14,14 @@ use App\Models\LandlordAccountEntry;
 use App\Models\Property;
 use App\Models\User;
 use App\Support\MediaStorage;
+use App\Support\BookingDeletion;
 use App\Support\BookingInvoiceSchedule;
 use App\Support\AppSettings;
 use App\Support\PdfRenderer;
 use App\Support\TtlockClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -322,31 +324,23 @@ class BookingController extends Controller
             ->with('success', 'Booking updated successfully.');
     }
 
-    public function destroy(Booking $booking)
+    public function destroy(Request $request, Booking $booking, BookingDeletion $deletion)
     {
-        if (\App\Models\BookingDepositEntry::where('booking_id', $booking->id)->exists() || \App\Models\BookingDepositRefund::where('booking_id', $booking->id)->exists()) {
-            return back()->withErrors(['deposit' => 'This booking has deposit audit records and cannot be deleted.']);
+        $data = $request->validate([
+            'booking_reference' => ['required', 'string'],
+            'current_password' => ['required', 'string'],
+            'reason' => ['required', 'string', 'min:10', 'max:1000'],
+        ]);
+        if ($data['booking_reference'] !== $booking->booking_reference) {
+            throw ValidationException::withMessages(['booking_reference' => 'Type the exact booking number to confirm deletion.']);
         }
-        if ($booking->invoices()->whereHas('allPayments')->exists()) {
-            return back()->withErrors(['payment' => 'Bookings with payment history cannot be deleted. Use the audited correction options in History.']);
+        if (! Hash::check($data['current_password'], $request->user()->password)) {
+            throw ValidationException::withMessages(['current_password' => 'The password is incorrect.']);
         }
-        $reference = $booking->booking_reference;
-        $landlordId = $booking->property?->landlord_id;
-
-        LandlordAccountEntry::where('reference', $reference)->delete();
-        $booking->tasks()->with('remarks')->get()->each(function (BookingTask $task) {
-            $task->remarks()->delete();
-            $task->delete();
-        });
-        $booking->histories()->delete();
-        $booking->delete();
-
-        if ($landlordId) {
-            LandlordAccountEntry::recalculateBalancesFor($landlordId);
-        }
+        $deletion->delete($booking, $data['reason']);
 
         return redirect()->route('admin.booking.index')
-            ->with('success', 'Booking deleted successfully.');
+            ->with('success', 'Booking and its linked financial records were deleted.');
     }
 
     public function extend(Request $request, Booking $booking)

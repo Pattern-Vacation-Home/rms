@@ -147,7 +147,8 @@ class BookingCorrectionsTest extends TestCase
         $this->assertSame(1, $invoice->payments()->count());
         $this->assertSame(2, $invoice->allPayments()->count());
         $this->get(route('admin.booking.history', $booking))->assertOk()->assertSee('Payment Reversed');
-        $this->delete(route('admin.booking.destroy', $booking))->assertSessionHasErrors('payment');
+        $this->delete(route('admin.booking.destroy', $booking))->assertSessionHasErrors(['booking_reference', 'current_password', 'reason']);
+        $this->assertNotNull($booking->fresh());
     }
 
     public function test_owner_cannot_correct_invoices_or_payments_and_proof_cannot_fake_payment(): void

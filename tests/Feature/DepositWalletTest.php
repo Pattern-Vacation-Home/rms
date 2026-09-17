@@ -204,7 +204,7 @@ class DepositWalletTest extends TestCase
         $this->assertSame(1, $invoice->payments()->count());
         $this->assertSame(1600.0, DepositWallet::totals($booking)['held']);
         $this->assertSame(2600.0, (float) $bank->fresh()->current_balance);
-        $this->delete(route('admin.booking.destroy', $booking))->assertSessionHasErrors('deposit');
+        $this->delete(route('admin.booking.destroy', $booking))->assertSessionHasErrors(['booking_reference', 'current_password', 'reason']);
         $this->assertNotNull($booking->fresh());
     }
 
