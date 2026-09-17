@@ -61,4 +61,23 @@ class BookingCheckInPaymentTest extends TestCase
         $this->actingAs($admin)->post(route('admin.booking.check-in', $booking))->assertSessionHasErrors('workflow');
         $this->assertSame('confirmed', $booking->fresh()->status);
     }
+
+    public function test_recorded_first_period_payment_allows_check_in_even_if_status_is_stale(): void
+    {
+        ['admin' => $admin, 'booking' => $booking, 'first' => $first] = $this->bookingWithTwoPeriods();
+        $first->payments()->create(['payment_date' => '2026-09-01', 'amount' => 1000, 'payment_method' => 'Bank Transfer']);
+
+        $this->actingAs($admin)->post(route('admin.booking.check-in', $booking))->assertSessionHasNoErrors();
+        $this->assertSame('checked_in', $booking->fresh()->status);
+    }
+
+    public function test_legacy_settled_first_period_allows_check_in_without_recreating_payment(): void
+    {
+        ['admin' => $admin, 'booking' => $booking, 'first' => $first] = $this->bookingWithTwoPeriods();
+        $first->update(['legacy_owner_settled' => true, 'status' => 'paid']);
+
+        $this->actingAs($admin)->post(route('admin.booking.check-in', $booking))->assertSessionHasNoErrors();
+        $this->assertSame('checked_in', $booking->fresh()->status);
+        $this->assertSame(0, $first->payments()->count());
+    }
 }

@@ -77,9 +77,23 @@ class InvoiceSettlement
 
     public static function firstPeriodPaid(Booking $booking): bool
     {
-        $firstInvoice = $booking->invoices()->orderBy('period_from')->orderBy('issue_date')->first();
+        $firstInvoice = $booking->invoices()
+            ->orderByRaw('COALESCE(period_from, issue_date) ASC')
+            ->orderBy('issue_date')
+            ->first();
 
-        return self::isPaid($firstInvoice);
+        if (! $firstInvoice) {
+            return false;
+        }
+
+        // RMS legacy periods were settled before migration, so they have no payment rows.
+        if ($firstInvoice->legacy_owner_settled) {
+            return true;
+        }
+
+        // Recorded, non-reversed receipts are the source of truth even if an old status label is stale.
+        return DepositWallet::cents($firstInvoice->payments()->sum('amount'))
+            >= DepositWallet::cents($firstInvoice->total_amount);
     }
 
     public static function assertBookingPaid(Booking $booking): void

@@ -324,6 +324,13 @@ class BookingController extends Controller
             ->with('success', 'Booking updated successfully.');
     }
 
+    public function confirmDelete(Booking $booking)
+    {
+        $booking->loadCount(['invoices', 'tasks', 'inspections']);
+
+        return view('admin.bookings.delete', compact('booking'));
+    }
+
     public function destroy(Request $request, Booking $booking, BookingDeletion $deletion)
     {
         $data = $request->validate([

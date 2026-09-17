@@ -68,6 +68,10 @@ class BookingDeletionTest extends TestCase
     public function test_wrong_password_cannot_delete_booking(): void
     {
         ['booking' => $booking] = $this->booking();
+        $this->get(route('admin.booking.delete', $booking))->assertOk()
+            ->assertSee('name="booking_reference"', false)
+            ->assertSee('name="current_password"', false)
+            ->assertSee('name="reason"', false);
         $this->delete(route('admin.booking.destroy', $booking), [
             'booking_reference' => $booking->booking_reference,
             'current_password' => 'wrong password',

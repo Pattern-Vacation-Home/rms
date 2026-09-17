@@ -183,6 +183,7 @@ Route::get('/bookings/create', [BookingController::class, 'create'])->name('book
 Route::post('/bookings', [BookingController::class, 'store'])->name('booking.store');
 Route::get('/bookings/{booking}/edit', [BookingController::class, 'edit'])->name('booking.edit');
 Route::put('/bookings/{booking}', [BookingController::class, 'update'])->name('booking.update');
+  Route::get('/bookings/{booking}/delete', [BookingController::class, 'confirmDelete'])->name('booking.delete');
   Route::delete('/bookings/{booking}', [BookingController::class, 'destroy'])->name('booking.destroy');
   Route::post('/bookings/{booking}/extend', [BookingController::class, 'extend'])->name('booking.extend');
   Route::post('/bookings/{booking}/renew', [BookingController::class, 'renew'])->name('booking.renew');
