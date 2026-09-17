@@ -118,6 +118,9 @@ class Booking extends BaseModel
 
     public function getWorkflowStatusLabelAttribute(): string
     {
+        if ($this->status === 'checked_in') return 'Checked In';
+        if ($this->status === 'checked_out') return 'Checked Out';
+
         if ($this->invoice_status !== 'paid') {
             return 'Unpaid';
         }
@@ -131,6 +134,9 @@ class Booking extends BaseModel
 
     public function getWorkflowStatusClassAttribute(): string
     {
+        if ($this->status === 'checked_in') return 'bg-info';
+        if ($this->status === 'checked_out') return 'bg-dark';
+
         if ($this->invoice_status !== 'paid') {
             return 'bg-warning';
         }

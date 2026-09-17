@@ -231,11 +231,14 @@
                 <div class="d-grid gap-2">
                     <form action="{{ route('admin.booking.check-in', $booking->id) }}" method="POST">
                         @csrf
-                        <button class="btn btn-outline-success w-100" {{ $booking->invoice_status !== 'paid' || $booking->checked_in_at ? 'disabled' : '' }}>
+                        <button class="btn btn-outline-success w-100" {{ !\App\Support\InvoiceSettlement::firstPeriodPaid($booking) || $booking->status !== 'confirmed' || $booking->checked_in_at ? 'disabled' : '' }}>
                             <iconify-icon icon="solar:clipboard-check-broken" class="align-middle fs-18"></iconify-icon>
                             Complete Check In
                         </button>
                     </form>
+                    @if($booking->status === 'confirmed' && !$booking->checked_in_at)
+                        <div class="small text-muted">Check-in requires payment of the first stay period only. Later invoice periods may remain unpaid.</div>
+                    @endif
                     <div>
                         <button type="button" class="btn btn-outline-dark w-100" data-bs-toggle="modal" data-bs-target="#checkoutConfirmModal" {{ $booking->checked_out_at ? 'disabled' : '' }}>
                             <iconify-icon icon="solar:clipboard-remove-broken" class="align-middle fs-18"></iconify-icon>

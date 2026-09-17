@@ -65,8 +65,21 @@ class InvoiceSettlement
 
     public static function assertPaid(BookingInvoice $invoice): void
     {
-        abort_unless($invoice->status === 'paid' && DepositWallet::cents($invoice->payments()->sum('amount')) >= DepositWallet::cents($invoice->total_amount), 422,
+        abort_unless(self::isPaid($invoice), 422,
             'Booking confirmation is available only after the full invoice amount has been recorded as paid.');
+    }
+
+    public static function isPaid(?BookingInvoice $invoice): bool
+    {
+        return $invoice !== null && $invoice->status === 'paid'
+            && DepositWallet::cents($invoice->payments()->sum('amount')) >= DepositWallet::cents($invoice->total_amount);
+    }
+
+    public static function firstPeriodPaid(Booking $booking): bool
+    {
+        $firstInvoice = $booking->invoices()->orderBy('period_from')->orderBy('issue_date')->first();
+
+        return self::isPaid($firstInvoice);
     }
 
     public static function assertBookingPaid(Booking $booking): void

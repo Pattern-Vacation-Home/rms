@@ -692,8 +692,11 @@ class BookingController extends Controller
 
     public function checkIn(Request $request, Booking $booking)
     {
-        if ($booking->invoice_status !== 'paid') {
-            return back()->withErrors(['workflow' => 'Invoice must be paid before check in.']);
+        if ($booking->status !== 'confirmed' || $booking->checked_in_at) {
+            return back()->withErrors(['workflow' => 'Only a confirmed booking that has not been checked in can be checked in.']);
+        }
+        if (! \App\Support\InvoiceSettlement::firstPeriodPaid($booking)) {
+            return back()->withErrors(['workflow' => 'The first stay-period invoice must be fully paid before check-in. Future invoices may remain unpaid.']);
         }
 
         $booking->update([
