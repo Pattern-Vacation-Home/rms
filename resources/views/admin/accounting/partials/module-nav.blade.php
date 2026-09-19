@@ -19,6 +19,7 @@
         ['label' => 'Dashboard', 'route' => 'admin.accounting.dashboard', 'icon' => 'ri-dashboard-3-line'],
         ['label' => 'Chart of Accounts', 'route' => 'admin.accounting.chart-of-accounts', 'icon' => 'ri-node-tree'],
         ['label' => 'Bank & Cash', 'route' => 'admin.accounting.bank-accounts', 'icon' => 'ri-bank-card-line'],
+        ['label' => 'Bank Reconciliation', 'route' => 'admin.accounting.bank-reconciliation', 'icon' => 'ri-check-double-line'],
         ['label' => 'Vendors', 'route' => 'admin.accounting.vendors', 'icon' => 'ri-store-2-line'],
         ['label' => 'Ledger', 'route' => 'admin.accounting.ledger', 'icon' => 'ri-book-2-line'],
         ['label' => 'Expenses', 'route' => 'admin.accounting.expenses', 'icon' => 'ri-receipt-line'],

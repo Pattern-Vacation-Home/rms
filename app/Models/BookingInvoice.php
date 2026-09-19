@@ -70,7 +70,12 @@ class BookingInvoice extends BaseModel
 
         $paid = (float) ($this->payments_sum_amount ?? $this->payments()->sum('amount'));
 
-        return $paid === 0.0 && $this->status === 'paid' ? (float) $this->total_amount : $paid;
+        if ($paid === 0.0 && $this->status === 'paid') {
+            $hasAnyPayment = (int) ($this->all_payments_count ?? $this->allPayments()->count()) > 0;
+            if (! $hasAnyPayment) return (float) $this->total_amount;
+        }
+
+        return $paid;
     }
 
     public function getBalanceDueAttribute(): float

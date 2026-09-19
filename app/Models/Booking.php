@@ -121,9 +121,8 @@ class Booking extends BaseModel
         if ($this->status === 'checked_in') return 'Checked In';
         if ($this->status === 'checked_out') return 'Checked Out';
 
-        if ($this->invoice_status !== 'paid') {
-            return 'Unpaid';
-        }
+        if ($this->invoice_status === 'partial') return 'Partly Paid';
+        if ($this->invoice_status !== 'paid') return 'Unpaid';
 
         return match ($this->status) {
             'checked_in' => 'Checked In',

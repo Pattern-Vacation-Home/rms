@@ -17,6 +17,7 @@ use App\Http\Controllers\admin\bookings\DepositController;
 use App\Http\Controllers\admin\tasks\TaskController;
 use App\Http\Controllers\admin\inspections\InspectionController;
 use App\Http\Controllers\admin\accounting\AccountingController;
+use App\Http\Controllers\admin\accounting\BankReconciliationController;
 use App\Http\Controllers\admin\SettingsController;
 use App\Http\Controllers\admin\SoftwareUpdateController;
 use App\Http\Controllers\admin\DocumentOcrController;
@@ -55,6 +56,10 @@ Route::get('/accounting/chart-of-accounts/{account}/statement', [AccountingContr
 Route::get('/accounting/bank-accounts', [AccountingController::class, 'bankAccounts'])->name('accounting.bank-accounts');
 Route::post('/accounting/bank-accounts', [AccountingController::class, 'storeBankAccount'])->name('accounting.bank-accounts.store');
 Route::get('/accounting/bank-accounts/statements', [AccountingController::class, 'bankStatements'])->name('accounting.bank-statements');
+Route::get('/accounting/bank-reconciliation', [BankReconciliationController::class, 'index'])->name('accounting.bank-reconciliation');
+Route::post('/accounting/bank-reconciliation', [BankReconciliationController::class, 'upload'])->name('accounting.bank-reconciliation.upload');
+Route::get('/accounting/bank-reconciliation/{import}', [BankReconciliationController::class, 'show'])->name('accounting.bank-reconciliation.show');
+Route::post('/accounting/bank-reconciliation/transactions/{transaction}/confirm', [BankReconciliationController::class, 'confirm'])->name('accounting.bank-reconciliation.confirm');
 Route::post('/accounting/bank-accounts/transfers', [AccountingController::class, 'transferBetweenAccounts'])->name('accounting.bank-accounts.transfer');
 Route::put('/accounting/bank-accounts/{bankAccount}', [AccountingController::class, 'updateBankAccount'])->name('accounting.bank-accounts.update');
 Route::get('/accounting/bank-accounts/{bankAccount}/statement', [AccountingController::class, 'bankAccountStatement'])->name('accounting.bank-account.statement');

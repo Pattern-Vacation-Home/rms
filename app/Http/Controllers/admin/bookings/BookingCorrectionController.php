@@ -146,7 +146,7 @@ class BookingCorrectionController extends Controller
             \App\Support\InvoiceSettlement::reverse($payment, $data['reason']);
             $paid = (float) $invoice->payments()->sum('amount');
             $invoice->update(['status' => $paid <= 0 ? 'unpaid' : ($paid >= (float) $invoice->total_amount ? 'paid' : 'partial')]);
-            $booking->update(['invoice_status' => $booking->invoices()->where('status', '!=', 'paid')->exists() ? 'unpaid' : 'paid']);
+            \App\Support\BookingPaymentSummary::sync($booking);
             if ($payment->bank_account_id) {
                 $account = BankAccount::whereKey($payment->bank_account_id)->lockForUpdate()->firstOrFail();
                 $account->update(['current_balance' => (float) $account->opening_balance + (float) $account->entries()->whereIn('approval_status', ['posted', 'approved', 'paid'])->selectRaw('COALESCE(SUM(credit - debit),0) as movement')->value('movement')]);

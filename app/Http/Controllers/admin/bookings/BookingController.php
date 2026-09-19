@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Support\MediaStorage;
 use App\Support\BookingDeletion;
 use App\Support\BookingInvoiceSchedule;
+use App\Support\BookingPaymentSummary;
 use App\Support\AppSettings;
 use App\Support\PdfRenderer;
 use App\Support\TtlockClient;
@@ -32,10 +33,11 @@ class BookingController extends Controller
     {
         $bookings = $this->filteredBookings($request);
         $totalBookings = Booking::count();
-        $paidInvoices = Booking::where('invoice_status', 'paid')->count();
-        $unpaidInvoices = Booking::where('invoice_status', 'unpaid')->count();
+        $paidInvoices = BookingInvoice::where('status', 'paid')->count();
+        $partialInvoices = BookingInvoice::where('status', 'partial')->count();
+        $unpaidInvoices = BookingInvoice::where('status', 'unpaid')->count();
 
-        return view('admin.bookings.index', compact('bookings', 'totalBookings', 'paidInvoices', 'unpaidInvoices'));
+        return view('admin.bookings.index', compact('bookings', 'totalBookings', 'paidInvoices', 'partialInvoices', 'unpaidInvoices'));
     }
 
     public function grid(Request $request)
@@ -55,7 +57,8 @@ class BookingController extends Controller
             'to' => 'nullable|date_format:Y-m-d'.($request->filled('from') ? '|after_or_equal:from' : ''),
             'per_page' => 'nullable|integer|in:10,12,25,50,100',
         ]);
-        $query = Booking::with(['property.building', 'property.landlord', 'agent']);
+        $query = Booking::with(['property.building', 'property.landlord', 'agent',
+            'invoices' => fn ($query) => $query->withSum('payments', 'amount')->withCount('allPayments')]);
         $search = trim($filters['search'] ?? '');
         if ($search !== '') {
             $query->where(function ($query) use ($search) {
@@ -95,18 +98,19 @@ class BookingController extends Controller
         return response()->streamDownload(function () use ($bookings) {
             $output = fopen('php://output', 'wb');
             fwrite($output, "\xEF\xBB\xBF");
-            fputcsv($output, ['Booking Ref.', 'Guest', 'Email', 'Phone', 'Passport / ID', 'Owner', 'Building', 'Unit', 'Agent', 'Check In', 'Check Out', 'Nights', 'Booking Status', 'Invoice Status', 'Rent', 'VAT', 'DTCM Fee', 'Cleaning Fee', 'Agency Fee', 'Security Deposit', 'Total (AED)']);
+            fputcsv($output, ['Booking Ref.', 'Guest', 'Email', 'Phone', 'Passport / ID', 'Owner', 'Building', 'Unit', 'Agent', 'Check In', 'Check Out', 'Nights', 'Booking Status', 'Payment Status', 'Rent', 'VAT', 'DTCM Fee', 'Cleaning Fee', 'Agency Fee', 'Security Deposit', 'Total (AED)', 'Received (AED)', 'Balance (AED)']);
             foreach ($bookings as $booking) {
+                $paymentSummary = BookingPaymentSummary::for($booking);
                 $row = [
                     $booking->booking_reference, $booking->guest_name, $booking->guest_email, $booking->guest_phone,
                     $booking->guest_passport_id_no, $booking->property?->landlord?->name,
                     $booking->property?->building?->building_name ?? $booking->property?->building?->name,
                     $booking->property?->name, $booking->agent?->name,
                     $booking->check_in?->format('Y-m-d'), $booking->check_out?->format('Y-m-d'), $booking->nights,
-                    str($booking->status)->replace('_', ' ')->headline(), str($booking->invoice_status)->headline(),
+                    str($booking->status)->replace('_', ' ')->headline(), str($paymentSummary['status'])->headline(),
                     (float) $booking->rent_amount, (float) $booking->vat_amount, (float) $booking->dtcm_fee,
                     (float) $booking->cleaning_fee, (float) $booking->agency_fee, (float) $booking->security_deposit,
-                    (float) $booking->total_amount,
+                    (float) $booking->total_amount, $paymentSummary['paid'], $paymentSummary['balance'],
                 ];
                 fputcsv($output, array_map(function ($value) {
                     if (! is_string($value)) {
@@ -557,7 +561,7 @@ class BookingController extends Controller
             \App\Support\InvoiceSettlement::post($payment);
             $invoice->booking->histories()->create(['title' => 'Payment Recorded', 'description' => 'Payment '.$payment->id.' for '.$invoice->invoice_number.': AED '.number_format((float) $payment->amount, 2).'; rent portion '.($payment->rent_amount ?? 'legacy').'; recorded by '.auth()->user()->name.'.']);
             $invoice->update(['status' => $paid >= (float) $invoice->total_amount ? 'paid' : 'partial']);
-            $invoice->booking?->update(['invoice_status' => $invoice->booking->invoices()->where('status', '!=', 'paid')->exists() ? 'unpaid' : 'paid']);
+            BookingPaymentSummary::sync($invoice->booking);
             if ($data['bank_account_id'] ?? null) {
                 $account = BankAccount::whereKey($data['bank_account_id'])->lockForUpdate()->first();
                 $account?->forceFill(['current_balance' => (float) $account->opening_balance + (float) $account->entries()->whereIn('approval_status', ['posted', 'approved', 'paid'])->selectRaw('COALESCE(SUM(credit - debit),0) as movement')->value('movement')])->save();
@@ -656,7 +660,7 @@ class BookingController extends Controller
                 $summary[] = $invoice->invoice_number.' AED '.number_format($amount, 2);
                 $remaining = round($remaining - $amount, 2);
             }
-            $booking->update(['invoice_status' => $booking->invoices()->where('status', '!=', 'paid')->exists() ? 'unpaid' : 'paid']);
+            BookingPaymentSummary::sync($booking);
             $booking->histories()->create(['title' => 'Combined Payment Recorded', 'description' => 'Transfer '.$data['reference'].' allocated: '.implode('; ', $summary).'.']);
             $account = BankAccount::whereKey($data['bank_account_id'])->lockForUpdate()->first();
             $account?->forceFill(['current_balance' => (float) $account->opening_balance + (float) $account->entries()->whereIn('approval_status', ['posted', 'approved', 'paid'])->selectRaw('COALESCE(SUM(credit - debit),0) as movement')->value('movement')])->save();

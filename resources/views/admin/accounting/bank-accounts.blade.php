@@ -6,7 +6,7 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h4 class="card-title mb-0">Bank & Cash Management</h4>
-        <div class="d-flex gap-2"><a class="btn btn-outline-dark" href="{{ url('/admin/accounting/bank-accounts/statements') }}"><i class="ri-file-list-3-line me-1"></i>All Statements</a><button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#transferModal"><i class="ri-arrow-left-right-line me-1"></i>Transfer</button><button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#bankModal"><i class="ri-add-line me-1"></i>Add Bank/Cash</button></div>
+        <div class="d-flex gap-2"><a class="btn btn-outline-primary" href="{{ route('admin.accounting.bank-reconciliation') }}">Reconcile Statement</a><a class="btn btn-outline-dark" href="{{ url('/admin/accounting/bank-accounts/statements') }}"><i class="ri-file-list-3-line me-1"></i>All Statements</a><button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#transferModal"><i class="ri-arrow-left-right-line me-1"></i>Transfer</button><button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#bankModal"><i class="ri-add-line me-1"></i>Add Bank/Cash</button></div>
     </div>
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
