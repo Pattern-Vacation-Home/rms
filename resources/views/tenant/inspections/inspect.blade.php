@@ -9,7 +9,7 @@
         <form action="{{ route('tenant.inspection.inspect.store', [$inspection->id, $area]) }}" method="POST" enctype="multipart/form-data" class="tenant-form" id="inspection-wizard" data-tenant-draft data-draft-url="{{ route('tenant.inspection.draft', $inspection) }}" data-photo-url="{{ route('tenant.inspection.photo', $inspection) }}" data-scope="{{ auth()->id() }}:{{ $inspection->id }}" data-revision="{{ $inspection->draft_revision }}" data-step="0">
             @csrf
 <input type="hidden" name="draft_revision" value="{{ $inspection->draft_revision }}">
-<p id="draft-status" role="status">Draft ready</p><button type="button" id="draft-save" class="tenant-secondary">Save draft</button>
+<p id="draft-status" role="status">Draft ready</p><button type="button" id="draft-save" class="tenant-secondary">Save draft</button><button type="button" id="inspection-retry" class="tenant-secondary" hidden>Retry upload</button>
             @foreach($items as $index => $item)
                 <section class="tenant-inspect-item">
                     <h3>{{ $index + 1 }}. {{ $item->item }}</h3>
@@ -33,5 +33,5 @@
         </form>
     </main>
 </div>
-<script src="{{ asset('assets/js/inspection-draft.js') }}" defer></script>
+<script src="{{ asset('assets/js/inspection-draft.js') }}?v=17" defer></script>
 @endsection

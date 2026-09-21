@@ -240,7 +240,7 @@ class MaintainerController extends Controller
             'items.*.comment' => 'nullable|string|max:1000',
             'pictures' => 'nullable|array',
             'pictures.*' => 'nullable|array|max:5',
-            'pictures.*.*' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:5120',
+            'pictures.*.*' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:10240',
             'notes' => 'nullable|string|max:3000',
             'gps_latitude' => 'nullable|numeric',
             'gps_longitude' => 'nullable|numeric',

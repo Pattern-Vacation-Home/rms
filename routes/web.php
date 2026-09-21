@@ -57,6 +57,7 @@ require __DIR__.'/tenant.php';
 require __DIR__.'/landlord.php';
 require __DIR__.'/agent.php';
 require __DIR__.'/maintainer.php';
+require __DIR__.'/field.php';
 
 // ========== Profile Routes ==========
 Route::middleware('auth')->group(function () {

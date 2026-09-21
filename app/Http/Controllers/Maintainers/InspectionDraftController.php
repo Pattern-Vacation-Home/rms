@@ -72,7 +72,7 @@ class InspectionDraftController extends Controller
 
     private function savePhoto(Request $request, BookingTask|BookingInspection $task)
     {
-        $data = $request->validate(['upload_id' => 'required|uuid', 'item_id' => 'required|uuid', 'photo' => 'required|file|mimes:jpg,jpeg,png,webp|max:5120']);
+        $data = $request->validate(['upload_id' => 'required|uuid', 'item_id' => 'required|uuid', 'photo' => 'required|file|mimes:jpg,jpeg,png,webp|max:10240']);
 
         return DB::transaction(function () use ($task, $request, $data) {
             $inspection = $this->locked($task);

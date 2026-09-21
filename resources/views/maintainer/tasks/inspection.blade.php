@@ -20,7 +20,7 @@
             <section data-wizard-step data-step-title="Rooms" class="pwa-section"><h3>Rooms to inspect</h3><p>Work through each room, record condition and photos, then count inventory.</p><ul>@foreach($inspection->items->groupBy('area') as $area => $roomItems)<li>{{ $area }} · {{ $roomItems->count() }} checks</li>@endforeach</ul><small>Nothing is marked Good automatically. All rooms must be reviewed.</small></section>
             @csrf
 <input type="hidden" name="draft_revision" value="{{ $inspection->draft_revision }}">
-<div id="draft-state" class="inspection-save-state"><span class="inspection-save-dot"></span><span id="draft-status" role="status">Saved automatically</span></div>
+<div id="draft-state" class="inspection-save-state"><span class="inspection-save-dot"></span><span id="draft-status" role="status">Saved automatically</span><button type="button" id="inspection-retry" class="btn btn-sm btn-outline-danger ms-auto" hidden>Retry upload</button></div>
             @foreach($inspection->items->groupBy('area') as $area => $items)
                 <section data-wizard-step data-step-title="{{ $area }}" class="pwa-section pwa-inspection-area">
                     <h3>{{ $area }}</h3>
@@ -125,5 +125,5 @@ document.addEventListener('DOMContentLoaded', () => {
     show();
 });
 </script>
-<script src="{{ asset('assets/js/inspection-draft.js') }}" defer></script>
+<script src="{{ asset('assets/js/inspection-draft.js') }}?v=17" defer></script>
 @endsection

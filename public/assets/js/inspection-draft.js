@@ -14,21 +14,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         status.textContent = message;
         if (state) state.className = 'inspection-save-state' + (type ? ' is-' + type : '');
     }
-    async function preparePhoto(file) {
-        if (!file.type.startsWith('image/') || file.type === 'image/gif') return file;
-        try {
-            const bitmap = await createImageBitmap(file);
-            const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
-            if (scale === 1 && file.size < 1500 * 1024) { bitmap.close(); return file; }
-            const canvas = document.createElement('canvas');
-            canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-            canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-            canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-            bitmap.close();
-            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', .82));
-            return blob ? new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', {type:'image/jpeg', lastModified:file.lastModified}) : file;
-        } catch (error) { return file; }
-    }
     function cache() {
         try {localStorage.setItem(cacheKey,JSON.stringify({revision,fields:[...new FormData(form)].filter(([n,v])=>typeof v==='string'&&(n.startsWith('items[')||n.startsWith('inventory[')||n==='notes'))}));}
         catch(error) {setStatus('Device storage unavailable. Keep this page open.', 'error');}
@@ -53,20 +38,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     function render(picker) {
         const list = picker.querySelector('[data-photo-list]');
-        list.querySelectorAll('img[data-local]').forEach(img => URL.revokeObjectURL(img.src));
         list.replaceChildren();
         const saved = JSON.parse(picker.dataset.saved);
         const queued = [...pending.values()].filter(p => p.item === picker.dataset.itemId);
-        [...saved.map(p => ({url:p.url, label:'Saved'})), ...queued.map(p => ({url:URL.createObjectURL(p.file), label:'Waiting to upload', local:true}))].forEach(p => {
-            const box = document.createElement('div'), img = document.createElement('img'), caption = document.createElement('small');
-            img.src=p.url; img.alt='Inspection evidence'; img.width=80; img.height=80;
-            if(p.local) img.dataset.local='1';
-            caption.textContent=p.label; caption.style.display='block'; box.append(img,caption); list.append(box);
+        [...saved.map(p => ({url:p.url, label:'Saved'})), ...queued.map(() => ({label:'Waiting to upload'}))].forEach(p => {
+            const box = document.createElement('div'), caption = document.createElement('small');
+            const icon = document.createElement(p.url ? 'a' : 'span');
+            icon.className='d-flex align-items-center justify-content-center border rounded';
+            icon.style.width='80px';icon.style.height='80px';icon.textContent=p.url ? 'View photo' : 'Photo';
+            if (p.url) {icon.href=p.url;icon.target='_blank';icon.rel='noopener';}
+            box.append(icon);
+            caption.textContent=p.label; caption.style.display='block'; box.append(caption); list.append(box);
         });
         picker.querySelector('[data-photo-message]').textContent = saved.length+' saved · '+queued.length+' waiting';
     }
     async function send(url, body) {
-        const response = await fetch(url, {method:'POST',headers:{'X-CSRF-TOKEN':token,Accept:'application/json'},body});
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 45000);
+        let response;
+        try {
+            response = await fetch(url, {method:'POST',headers:{'X-CSRF-TOKEN':token,Accept:'application/json'},body,signal:controller.signal});
+        } catch(error) {
+            throw new Error(error.name === 'AbortError' ? 'Upload timed out. Tap Retry upload.' : 'Connection lost. Tap Retry upload.');
+        } finally {clearTimeout(timeout);}
         if(response.status===409) conflict=true;
         if(!response.ok) {
             const data=await response.json().catch(()=>({}));
@@ -111,33 +105,25 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } catch(error) {dirty=true;throw error;}
             }
             setStatus('All changes saved · '+new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
+            if(retryButton) retryButton.hidden=true;
             return true;
         } catch(error) {
             setStatus(conflict?'Draft changed or closed. Reload before continuing.':error.message+' Work is kept on this device.', 'error');
+            if(retryButton) retryButton.hidden=conflict;
             return false;
         } finally {busy=false;}
     }
-    pickers.forEach(p=>render(p));
-    try {
-        db=await new Promise((resolve,reject)=>{
-            const open=indexedDB.open('hhms-inspection-drafts',1);
-            open.onupgradeneeded=()=>open.result.createObjectStore('photos',{keyPath:'id'});
-            open.onsuccess=()=>resolve(open.result);open.onerror=()=>reject(open.error);
-        });
-        for(const p of await request('getAll')) if(p.scope===scope) pending.set(p.id,p);
-    } catch(error) {setStatus('Local photo storage unavailable. Keep this page open during upload.', 'error');}
+    const retryButton=document.getElementById('inspection-retry');
     pickers.forEach(picker=>{
         render(picker);
         picker.querySelectorAll('[data-photo-pick]').forEach(input=>input.addEventListener('change',async()=>{
-            setStatus('Preparing photos…', 'busy');
             const originalFiles=[...input.files];input.value='';
-            const files=[];
-            for (const file of originalFiles) files.push(await preparePhoto(file));
             const count=JSON.parse(picker.dataset.saved).length+[...pending.values()].filter(p=>p.item===picker.dataset.itemId).length;
-            if(count+files.length>5||files.some(f=>f.size>5*1024*1024||!['image/jpeg','image/png','image/webp'].includes(f.type))){
-                picker.querySelector('[data-photo-message]').textContent='Maximum 5 JPG/PNG/WebP photos, 5 MB each.';setStatus('Some photos could not be added.', 'error');return;
+            if(count+originalFiles.length>5||originalFiles.some(f=>f.size>10*1024*1024||!['image/jpeg','image/png','image/webp'].includes(f.type))){
+                picker.querySelector('[data-photo-message]').textContent='Maximum 5 JPG/PNG/WebP photos, 10 MB each.';setStatus('Photo could not be added. Use a JPG, PNG or WebP under 10 MB.', 'error');return;
             }
-            for(const file of files){
+            setStatus('Uploading photos…', 'busy');
+            for(const file of originalFiles){
                 const p={id:crypto.randomUUID(),scope,item:picker.dataset.itemId,file};
                 pending.set(p.id,p);
                 if(db) try {await request('put',p);} catch(error){setStatus('Device storage full. Keep this page open until uploaded.', 'error');}
@@ -146,6 +132,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }));
     });
     form.addEventListener('input',()=>{dirty=true;cache();setStatus('Saving automatically…', 'busy');clearTimeout(timer);timer=setTimeout(flush,500);});
+    retryButton?.addEventListener('click',()=>{retryButton.hidden=true;flush();});
+    document.getElementById('draft-save')?.addEventListener('click',()=>{dirty=true;flush();});
     window.addEventListener('online',flush);
     window.addEventListener('beforeunload',event=>{if(!leaving&&(dirty||pending.size||busy)){event.preventDefault();event.returnValue='';}});
     form.addEventListener('inspection-ready',async()=>{
@@ -154,5 +142,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         if(await flush()){leaving=true;HTMLFormElement.prototype.submit.call(form);}
         else button.disabled=false;
     });
+    try {
+        db=await new Promise((resolve,reject)=>{
+            const open=indexedDB.open('hhms-inspection-drafts',1);
+            const timeout=setTimeout(()=>reject(new Error('Storage timed out')),5000);
+            open.onupgradeneeded=()=>open.result.createObjectStore('photos',{keyPath:'id'});
+            open.onsuccess=()=>{clearTimeout(timeout);resolve(open.result);};
+            open.onerror=()=>{clearTimeout(timeout);reject(open.error);};
+            open.onblocked=()=>{clearTimeout(timeout);reject(new Error('Storage blocked'));};
+        });
+        for(const p of await request('getAll')) if(p.scope===scope) pending.set(p.id,p);
+        pickers.forEach(render);
+    } catch(error) {setStatus('Local photo storage unavailable. Keep this page open during upload.', 'error');}
     if(pending.size||dirty) flush();
 });

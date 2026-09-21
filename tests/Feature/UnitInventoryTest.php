@@ -30,6 +30,24 @@ class UnitInventoryTest extends TestCase
         return compact('admin', 'employee', 'owner', 'property', 'item', 'task');
     }
 
+    public function test_field_app_exposes_only_assigned_work_and_admin_review(): void
+    {
+        extract($this->setupInventory());
+        $this->actingAs($employee)
+            ->getJson('/field/api/bootstrap')->assertOk()->assertJsonPath('user.role', 'maintainer');
+        $this->getJson('/field/api/tasks')->assertOk()->assertJsonPath('tasks.0.id', $task->id);
+        $this->getJson('/field/api/tasks/'.$task->id.'/inspection')->assertOk()
+            ->assertJsonPath('task.id', $task->id)->assertJsonStructure(['inspection' => ['items', 'inventory', 'revision']]);
+
+        $other = User::factory()->create(['role' => 'maintainer', 'is_active' => true]);
+        $this->actingAs($other)->getJson('/field/api/tasks/'.$task->id)->assertForbidden();
+        $this->getJson('/field/api/tasks/'.$task->id.'/inspection')->assertForbidden();
+
+        $this->actingAs($admin)->getJson('/field/api/inspections')->assertOk()
+            ->assertJsonPath('inspections.0.task_id', $task->id);
+        $this->getJson('/field/api/options')->assertOk()->assertJsonStructure(['properties', 'maintainers', 'bookings']);
+    }
+
     public function test_inspection_draft_resumes_and_photos_are_idempotent(): void
     {
         extract($this->setupInventory());
@@ -54,7 +72,7 @@ class UnitInventoryTest extends TestCase
         $booking=\App\Models\Booking::create(['tenant_id'=>$tenant->id,'property_id'=>$property->id,'booking_reference'=>'BK-DRAFT','invoice_number'=>'INV-DRAFT','guest_name'=>'Guest','guest_email'=>'guest@example.com','guest_phone'=>'123','guest_passport_id_no'=>'PASS','check_in'=>'2026-09-01','check_out'=>'2026-09-30','rent_amount'=>100,'total_amount'=>100,'status'=>'confirmed']);
         $inspection->update(['booking_id'=>$booking->id]);
         $this->actingAs($tenant)->postJson(route('tenant.inspection.draft',$inspection),array_replace($draft,['revision'=>1]))->assertOk()->assertJsonPath('revision',2);
-        $this->get(route('tenant.inspection.inspect',[$inspection,$check->area]))->assertOk()->assertSee('Resume this inspection')->assertSee('Choose photos');
+        $this->get(route('tenant.inspection.inspect',[$inspection,$check->area]))->assertOk()->assertSee('Resume this inspection')->assertSee('Camera')->assertSee('Gallery');
         $this->actingAs($other)->postJson(route('tenant.inspection.draft',$inspection),array_replace($draft,['revision'=>2]))->assertForbidden();
         $inspection->update(['status'=>'submitted']);
         $this->actingAs($employee)->postJson(route('maintainer.task.inspection.draft',$task),array_replace($draft,['revision'=>1]))->assertStatus(409);
@@ -65,7 +83,7 @@ class UnitInventoryTest extends TestCase
         extract($this->setupInventory());
         $this->get(route('admin.inventory.index'))->assertOk()->assertSee('Glass');
         $this->actingAs($employee)->get(route('maintainer.task.index', ['inspections_only' => 1]))->assertOk()->assertSee($task->title);
-        $this->get(route('maintainer.task.inspection.form', $task))->assertOk()->assertSee('Inventory counts')->assertSee('Rooms to inspect')->assertSee('wizard-next')->assertSee('Choose photos');
+        $this->get(route('maintainer.task.inspection.form', $task))->assertOk()->assertSee('Inventory counts')->assertSee('Rooms to inspect')->assertSee('wizard-next')->assertSee('Camera')->assertSee('Retry upload');
         $this->post(route('maintainer.task.complete',$task),[])->assertSessionHasErrors('inspection');
         \Illuminate\Support\Facades\Storage::fake('public');
         $inspection = $task->inspection->fresh();
