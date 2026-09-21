@@ -11,8 +11,8 @@
 <div class="card border-warning-subtle">
     <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
         <div>
-            <h4 class="card-title mb-1">Bookings Expiring Within 3 Days</h4>
-            <p class="text-muted small mb-0">Contact the guest to confirm an extension or scheduled checkout.</p>
+            <h4 class="card-title mb-1">Checkout Follow-up</h4>
+            <p class="text-muted small mb-0">Bookings due within three days and overdue stays remain here until checkout, cancellation, or renewal is confirmed.</p>
         </div>
         <span class="badge bg-warning-subtle text-warning fs-13">{{ $expiringBookings->count() }} requiring follow-up</span>
     </div>
@@ -37,7 +37,7 @@
                         <td>{{ $unit }}<small class="d-block text-muted">{{ $building ?: 'No building' }}</small></td>
                         <td><a href="{{ route('admin.booking.show', $booking) }}">{{ $booking->booking_reference }}</a></td>
                         <td>
-                            <span class="badge {{ $daysLeft <= 0 ? 'bg-danger-subtle text-danger' : 'bg-warning-subtle text-warning' }}">{{ $daysLeft <= 0 ? 'Due today' : $daysLeft.' '.Str::plural('day', $daysLeft).' left' }}</span>
+                            <span class="badge {{ $daysLeft <= 0 ? 'bg-danger-subtle text-danger' : 'bg-warning-subtle text-warning' }}">{{ $daysLeft < 0 ? abs($daysLeft).' '.Str::plural('day', abs($daysLeft)).' overdue' : ($daysLeft === 0 ? 'Due today' : $daysLeft.' '.Str::plural('day', $daysLeft).' left') }}</span>
                             <small class="d-block text-muted mt-1">{{ str($booking->status)->replace('_', ' ')->headline() }}</small>
                         </td>
                         <td class="text-end text-nowrap">
@@ -51,7 +51,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="text-center text-muted py-4"><i class="ri-calendar-check-line fs-24 d-block mb-1"></i>No bookings expire during the next three days.</td></tr>
+                    <tr><td colspan="6" class="text-center text-muted py-4"><i class="ri-calendar-check-line fs-24 d-block mb-1"></i>No checkout follow-up is required.</td></tr>
                 @endforelse
                 </tbody>
             </table>

@@ -51,7 +51,9 @@ class AdminController extends Controller
             ->whereHas('property')
             ->whereNotIn('status', ['checked_out', 'cancelled'])
             ->whereDoesntHave('renewals', fn ($query) => $query->whereNotIn('status', ['cancelled', 'checked_out']))
-            ->whereBetween('check_out', [$today->toDateString(), $today->copy()->addDays(3)->toDateString()])
+            // Keep unresolved departures visible after their due date. They disappear only
+            // after checkout/cancellation or when an active renewal replaces the stay.
+            ->whereDate('check_out', '<=', $today->copy()->addDays(3)->toDateString())
             ->orderBy('check_out')
             ->orderBy('check_out_time')
             ->get();

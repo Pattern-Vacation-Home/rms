@@ -30,12 +30,14 @@ class AdminDashboardTest extends TestCase
         UnitDocument::create(['property_id' => $future->id, 'type' => 'dtcm_permit', 'expires_at' => '2027-09-05', 'file_path' => 'new.pdf']);
         $deleted->delete();
 
-        $this->actingAs($admin)->get(route('admin.dashboard'))->assertOk()
+        $response = $this->actingAs($admin)->get(route('admin.dashboard'))->assertOk()
             ->assertViewHas('totalProperties', 2)->assertViewHas('occupiedUnits', 1)
             ->assertViewHas('occupancyPercent', 50)->assertViewHas('upcomingDtcmExpiry', 1)
             ->assertViewHas('arrivalsToday', 1)->assertViewHas('departuresToday', 1)
             ->assertViewHas('overdueDepartures', 1)->assertViewHas('totalRegisteredUsers', 2)
-            ->assertSee('05 Sep 2027')->assertDontSee('05 Sep 2026');
+            ->assertSee('05 Sep 2027')
+            ->assertSee('1 day overdue');
+        $this->assertCount(3, $response->viewData('expiringBookings'));
     }
 
     public function test_empty_dashboard_has_zero_occupancy(): void
