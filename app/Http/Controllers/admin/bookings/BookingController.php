@@ -23,6 +23,7 @@ use App\Support\TtlockClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -248,6 +249,31 @@ class BookingController extends Controller
         $agents = User::where('role', 'agent')->orderBy('name')->get();
 
         return view('admin.bookings.edit', compact('booking', 'properties', 'agents'));
+    }
+
+    public function attachment(Booking $booking)
+    {
+        abort_if(blank($booking->guest_document), 404);
+
+        $path = trim((string) $booking->guest_document, '/');
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return redirect()->away($path);
+        }
+
+        // Support files from the original public-folder implementation as well
+        // as current files stored through the configured media disk.
+        if (MediaStorage::disk() === 'public' && is_file(public_path($path))) {
+            return response()->file(public_path($path));
+        }
+
+        $disk = Storage::disk(MediaStorage::disk());
+        $storagePath = MediaStorage::path($path);
+        abort_unless($disk->exists($storagePath), 404, 'Booking attachment not found.');
+
+        return $disk->response($storagePath, basename($path), [
+            'Content-Disposition' => 'inline; filename="'.basename($path).'"',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     public function update(Request $request, Booking $booking)

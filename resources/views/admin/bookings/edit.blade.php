@@ -21,7 +21,7 @@
                             <label class="form-label" for="guest_document">Attachment</label>
                             <input type="file" id="guest_document" name="guest_document" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
                             @if($booking->guest_document)
-                                <a href="{{ asset($booking->guest_document) }}" target="_blank" class="d-inline-block mt-2">View current attachment</a>
+                                <a href="{{ route('admin.booking.attachment', $booking) }}" target="_blank" rel="noopener" class="d-inline-block mt-2">View current attachment</a>
                             @endif
                             @error('guest_document')<span class="text-danger">{{ $message }}</span>@enderror
                         </div>

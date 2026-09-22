@@ -187,6 +187,7 @@ Route::get('/bookings/export/pdf', [BookingController::class, 'exportPdf'])->nam
 Route::get('/bookings/create', [BookingController::class, 'create'])->name('booking.create');
 Route::post('/bookings', [BookingController::class, 'store'])->name('booking.store');
 Route::get('/bookings/{booking}/edit', [BookingController::class, 'edit'])->name('booking.edit');
+Route::get('/bookings/{booking}/attachment', [BookingController::class, 'attachment'])->name('booking.attachment');
 Route::put('/bookings/{booking}', [BookingController::class, 'update'])->name('booking.update');
   Route::get('/bookings/{booking}/delete', [BookingController::class, 'confirmDelete'])->name('booking.delete');
   Route::delete('/bookings/{booking}', [BookingController::class, 'destroy'])->name('booking.destroy');

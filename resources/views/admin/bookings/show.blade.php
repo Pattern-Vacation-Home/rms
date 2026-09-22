@@ -126,7 +126,7 @@
                     <div class="col-lg-4"><span class="booking-detail-label">Phone</span><span class="booking-detail-value">{{ $booking->guest_phone }}</span></div>
                     <div class="col-lg-4"><span class="booking-detail-label">Agent</span><span class="booking-detail-value">{{ $booking->agent?->name ?? 'Not assigned' }}</span></div>
                     @if($booking->guest_document)
-                        <div class="col-lg-12"><a href="{{ asset($booking->guest_document) }}" target="_blank" class="btn btn-sm btn-outline-primary">View Guest Attachment</a></div>
+                        <div class="col-lg-12"><a href="{{ route('admin.booking.attachment', $booking) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">View Guest Attachment</a></div>
                     @endif
                 </div>
             </div>

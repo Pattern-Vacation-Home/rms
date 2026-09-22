@@ -104,4 +104,57 @@ void main() {
       matchesGoldenFile('screens/native-operations-home.png'),
     );
   });
+
+  testWidgets('inspection task detail hides maintenance finance actions', (
+    tester,
+  ) async {
+    final task = {
+      'id': 'task-inspection',
+      'number': 'TSK-INSP-01',
+      'title': 'Check-out inspection',
+      'type': 'checkout_inspection',
+      'status': 'assigned',
+      'status_label': 'Assigned',
+      'priority': 'urgent',
+      'building': 'Marina Residence',
+      'property': '502',
+      'due_date': '2026-09-20',
+      'created_by': 'Operations',
+      'description': 'Complete the checkout condition report.',
+      'activities': <Map<String, dynamic>>[],
+    };
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NativeFieldApp(
+          user: const {'id': 'u-1', 'name': 'Ahmed', 'role': 'maintainer'},
+          request: (method, path, [data]) async =>
+              path.endsWith('/task-inspection')
+              ? {'task': task}
+              : {
+                  'tasks': [task],
+                },
+          upload: (path, fields, file, [extras]) async => {},
+          signOut: () async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('All tasks'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('TSK-INSP-01').first);
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('Accept & start inspection'),
+      220,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Accept & start inspection'), findsOneWidget);
+    expect(find.text('Record task cost'), findsNothing);
+    expect(find.text('Request office payment'), findsNothing);
+    expect(
+      find.text('Complete the checkout condition report.'),
+      findsOneWidget,
+    );
+  });
 }

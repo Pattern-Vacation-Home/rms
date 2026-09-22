@@ -90,6 +90,8 @@ class _NativeFieldAppState extends State<NativeFieldApp> {
   bool get _admin => widget.user['role'] == 'admin';
   String get _taskId => _task['id']?.toString() ?? '';
   String get _inspectionId => _inspection['id']?.toString() ?? '';
+  bool get _isInspectionTask =>
+      const ['inspection', 'checkout_inspection'].contains(_task['type']);
   List<Map<String, dynamic>> get _items => _maps(_inspection['items']);
   List<Map<String, dynamic>> get _inventory => _maps(_inspection['inventory']);
   List<String> get _rooms =>
@@ -154,6 +156,8 @@ class _NativeFieldAppState extends State<NativeFieldApp> {
     if (mounted) {
       setState(() {
         _task = (response['task'] as Map).cast<String, dynamic>();
+        _secondary.text = _task['due_date']?.toString() ?? '';
+        _text.clear();
         _page = 'task';
       });
     }
@@ -356,32 +360,76 @@ class _NativeFieldAppState extends State<NativeFieldApp> {
   @override
   Widget build(BuildContext context) {
     final title = _titles[_page] ?? 'HHMS Field';
+    final rootPage = _rootPages.contains(_page);
     return Scaffold(
       backgroundColor: _paper,
       appBar: AppBar(
         backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
         foregroundColor: _navy,
-        leading: _page == 'home'
+        elevation: 0,
+        toolbarHeight: 72,
+        shape: const Border(
+          bottom: BorderSide(color: Color(0xFFE5ECEE), width: 1),
+        ),
+        leadingWidth: 62,
+        leading: rootPage
             ? Padding(
-                padding: const EdgeInsets.all(11),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(7),
-                  child: Image.asset('assets/brand-mark.png'),
+                padding: const EdgeInsets.fromLTRB(16, 14, 6, 14),
+                child: Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: const Color(0xFFDCE8EA)),
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: Image.asset(
+                    'assets/brand-mark.png',
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => const Icon(
+                      Icons.apartment_rounded,
+                      color: _navy,
+                      size: 20,
+                    ),
+                  ),
                 ),
               )
             : IconButton(
                 icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                onPressed: () => _go(_admin ? 'inspections' : 'tasks'),
+                tooltip: 'Back',
+                onPressed: _back,
               ),
-        title: Text(
-          title,
-          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+        titleSpacing: rootPage ? 4 : 0,
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _headerTitle(title),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              _headerSubtitle(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: _muted,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Refresh',
             onPressed: _refresh,
           ),
+          const SizedBox(width: 6),
         ],
       ),
       body: SafeArea(
@@ -401,24 +449,8 @@ class _NativeFieldAppState extends State<NativeFieldApp> {
               ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 110),
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: _navy,
-                      fontSize: 27,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    _subtitle(),
-                    style: const TextStyle(color: _muted, fontSize: 13),
-                  ),
-                  const SizedBox(height: 20),
-                  ..._body(),
-                ],
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 110),
+                children: _body(),
               ),
             ),
           ],
@@ -428,14 +460,60 @@ class _NativeFieldAppState extends State<NativeFieldApp> {
     );
   }
 
-  String _subtitle() {
+  static const _rootPages = {
+    'home',
+    'tasks',
+    'inspections',
+    'notifications',
+    'profile',
+  };
+
+  String _headerTitle(String fallback) {
+    if (_page != 'home') return fallback;
+    final firstName = widget.user['name']?.toString().trim().split(' ').first;
+    return 'Hello, ${firstName?.isNotEmpty == true ? firstName : 'Team'}';
+  }
+
+  String _headerSubtitle() {
     if (_page == 'home') {
-      return 'Good morning, ${widget.user['name']?.toString().split(' ').first ?? 'Team'}';
+      return _admin ? 'Operations control centre' : 'Your field workspace';
     }
-    if (_page == 'task' || _page == 'rooms' || _page == 'checklist') {
-      return '${_task['building'] ?? ''} · ${_task['property'] ?? ''}';
+    if (_page == 'task') {
+      return _task['number']?.toString() ?? 'Assigned work';
     }
-    return _admin ? 'Operations · live inspections' : 'Your assigned work';
+    if (const {
+      'accept',
+      'rooms',
+      'checklist',
+      'inventory',
+      'review',
+    }.contains(_page)) {
+      return '${_task['building'] ?? 'Property'} · Unit ${_task['property'] ?? '—'}';
+    }
+    if (_page.startsWith('ops_')) return 'Inspection operations';
+    return _admin ? 'Live operations' : 'Assigned to you';
+  }
+
+  void _back() {
+    if (const {
+      'accept',
+      'timeline',
+      'update',
+      'cost',
+      'expense',
+    }.contains(_page)) {
+      _go('task');
+      return;
+    }
+    if (const {'checklist', 'inventory'}.contains(_page)) {
+      _go('rooms');
+      return;
+    }
+    if (_page == 'review') {
+      _go(_inventory.isEmpty ? 'rooms' : 'inventory');
+      return;
+    }
+    _go(_admin ? 'inspections' : 'tasks');
   }
 
   static const _titles = <String, String>{
@@ -573,78 +651,124 @@ class _NativeFieldAppState extends State<NativeFieldApp> {
             )
             .toList();
 
-  List<Widget> _taskDetail() => [
-    _notice(
-      Icons.assignment_turned_in_outlined,
-      '${_task['title'] ?? ''}\n${_task['number'] ?? ''}',
-    ),
-    const SizedBox(height: 15),
-    _info('Status', _task['status_label']),
-    _info('Priority', _task['priority']),
-    _info('Due date', _task['due_date']),
-    _info('Assigned by', _task['created_by']),
-    if ((_task['description'] ?? '').toString().isNotEmpty)
-      _info('Instructions', _task['description']),
-    const SizedBox(height: 15),
-    if (['assigned', 'new', 'open'].contains(_task['status']))
-      _tile(
-        'Accept task',
-        'Confirm your expected completion',
-        Icons.check_circle_outline,
-        () => _go('accept'),
+  List<Widget> _taskDetail() {
+    final closed = [
+      'completed',
+      'closed',
+      'cancelled',
+    ].contains(_task['status']);
+    final pending = ['assigned', 'new', 'open'].contains(_task['status']);
+    return [
+      _taskHero(),
+      const SizedBox(height: 14),
+      _taskFacts(),
+      if ((_task['description'] ?? '').toString().isNotEmpty) ...[
+        _heading('Instructions'),
+        _card(
+          Text(
+            _task['description'].toString(),
+            style: const TextStyle(color: _navy, height: 1.45),
+          ),
+        ),
+      ],
+      _heading(closed ? 'Task record' : 'Next action'),
+      if (pending)
+        _actionCard(
+          _isInspectionTask ? 'Accept & start inspection' : 'Accept task',
+          _isInspectionTask
+              ? 'Confirm assignment, then open the room checklist'
+              : 'Confirm assignment and expected completion',
+          _isInspectionTask ? Icons.fact_check_outlined : Icons.task_alt,
+          () => _go('accept'),
+          primary: true,
+        ),
+      if (_task['status'] == 'accepted' && !_isInspectionTask)
+        _actionCard(
+          'Start work',
+          'Mark this job as in progress',
+          Icons.play_arrow_rounded,
+          () => _post('/maintainer/tasks/$_taskId/start', {}, 'tasks'),
+          primary: true,
+        ),
+      if (_isInspectionTask && !closed && !pending)
+        _actionCard(
+          'Continue inspection',
+          'Room checklist, multiple photos and inventory count',
+          Icons.fact_check_outlined,
+          _openInspection,
+          primary: true,
+        ),
+      if (!closed && !pending)
+        _actionCard(
+          'Add progress update',
+          'Send a short update to Operations',
+          Icons.edit_note_outlined,
+          () => _go('update'),
+        ),
+      if (!_isInspectionTask && !closed) ...[
+        _heading('Costs & purchasing'),
+        _actionCard(
+          'Record task cost',
+          'Labour, materials or other completed work',
+          Icons.receipt_long_outlined,
+          () => _go('cost'),
+        ),
+        _actionCard(
+          'Request office payment',
+          'Attach a supplier invoice for approval',
+          Icons.account_balance_wallet_outlined,
+          () => _go('expense'),
+        ),
+      ],
+      _heading('History'),
+      _actionCard(
+        'View timeline',
+        '${_maps(_task['activities']).length} recorded updates',
+        Icons.timeline_outlined,
+        () => _go('timeline'),
       ),
-    if (_task['status'] == 'accepted')
-      _tile(
-        'Start task',
-        'Begin work now',
-        Icons.play_arrow_rounded,
-        () => _post('/maintainer/tasks/$_taskId/start', {}, 'tasks'),
-      ),
-    if (['inspection', 'checkout_inspection'].contains(_task['type']) &&
-        !['completed', 'closed'].contains(_task['status']))
-      _tile(
-        'Continue inspection',
-        'Rooms, photos and inventory',
-        Icons.fact_check_outlined,
-        _openInspection,
-      ),
-    _tile(
-      'Timeline',
-      'All updates',
-      Icons.timeline_outlined,
-      () => _go('timeline'),
-    ),
-    _tile(
-      'Add update',
-      'Keep Operations informed',
-      Icons.edit_note_outlined,
-      () => _go('update'),
-    ),
-    _tile(
-      'Record cost',
-      'Labour, materials and other',
-      Icons.receipt_long_outlined,
-      () => _go('cost'),
-    ),
-    _tile(
-      'Expense request',
-      'Send invoice for office review',
-      Icons.payments_outlined,
-      () => _go('expense'),
-    ),
-  ];
+    ];
+  }
 
   List<Widget> _accept() => [
-    _notice(Icons.event_available_outlined, _task['title']?.toString() ?? ''),
+    _notice(
+      _isInspectionTask
+          ? Icons.fact_check_outlined
+          : Icons.event_available_outlined,
+      _isInspectionTask
+          ? 'Accept this assignment and begin the guided inspection.'
+          : 'Confirm when you expect to complete this task.',
+    ),
     const SizedBox(height: 18),
-    _field('Expected completion date', _secondary, hint: 'YYYY-MM-DD'),
-    _field('Initial remark', _text, hint: 'Optional note'),
+    _info('Due date', _task['due_date']),
+    if (!_isInspectionTask)
+      _field('Expected completion date', _secondary, hint: 'YYYY-MM-DD'),
+    _field(
+      _isInspectionTask ? 'Note to Operations (optional)' : 'Initial remark',
+      _text,
+      hint: _isInspectionTask
+          ? 'Example: Arriving at the unit now'
+          : 'Optional note',
+    ),
     _button(
-      'Accept task',
-      () => _post('/maintainer/tasks/$_taskId/accept', {
-        'expected_completion_date': _secondary.text,
-        'initial_remark': _text.text,
-      }, 'tasks'),
+      _isInspectionTask ? 'Accept & start inspection' : 'Accept task',
+      () async {
+        await _run(() async {
+          await widget.request('POST', '/maintainer/tasks/$_taskId/accept', {
+            'expected_completion_date':
+                _task['due_date']?.toString() ?? _secondary.text,
+            'initial_remark': _text.text,
+          });
+        });
+        if (_error == null && mounted) {
+          if (_isInspectionTask) {
+            await _openInspection();
+          } else {
+            _go('tasks');
+            await _refresh();
+          }
+        }
+      },
     ),
   ];
 
@@ -1234,6 +1358,199 @@ class _NativeFieldAppState extends State<NativeFieldApp> {
         color: _navy,
         fontSize: 17,
         fontWeight: FontWeight.w900,
+      ),
+    ),
+  );
+
+  Widget _taskHero() {
+    final status = _task['status_label']?.toString() ?? 'Assigned';
+    final isUrgent = _task['priority'] == 'urgent' || status == 'Overdue';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(19),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [_navy, Color(0xFF20526A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .14),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  _task['number']?.toString() ?? '',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: isUrgent
+                      ? const Color(0xFFFFE4DF)
+                      : const Color(0xFFDDF5EF),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  status,
+                  style: TextStyle(
+                    color: isUrgent
+                        ? const Color(0xFFB33A2B)
+                        : const Color(0xFF087E70),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _task['title']?.toString() ?? '',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 7),
+          Row(
+            children: [
+              const Icon(
+                Icons.location_on_outlined,
+                color: Color(0xFFB8D6DF),
+                size: 17,
+              ),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  '${_task['building'] ?? 'Building'} · Unit ${_task['property'] ?? '—'}',
+                  style: const TextStyle(
+                    color: Color(0xFFD8E7EB),
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _taskFacts() => _card(
+    Row(
+      children: [
+        Expanded(
+          child: _fact(Icons.flag_outlined, 'Priority', _task['priority']),
+        ),
+        Container(width: 1, height: 42, color: const Color(0xFFE7EEEF)),
+        Expanded(child: _fact(Icons.event_outlined, 'Due', _task['due_date'])),
+        Container(width: 1, height: 42, color: const Color(0xFFE7EEEF)),
+        Expanded(
+          child: _fact(
+            Icons.person_outline,
+            'Assigned by',
+            _task['created_by'],
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _fact(IconData icon, String label, dynamic value) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 7),
+    child: Column(
+      children: [
+        Icon(icon, color: _teal, size: 20),
+        const SizedBox(height: 5),
+        Text(label, style: const TextStyle(color: _muted, fontSize: 10)),
+        const SizedBox(height: 2),
+        Text(
+          value?.toString() ?? '—',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: _navy,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _actionCard(
+    String title,
+    String subtitle,
+    IconData icon,
+    VoidCallback onTap, {
+    bool primary = false,
+  }) => Container(
+    width: double.infinity,
+    margin: const EdgeInsets.only(bottom: 10),
+    decoration: BoxDecoration(
+      color: primary ? _teal : Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      border: primary ? null : Border.all(color: const Color(0xFFE4EBED)),
+    ),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(15),
+        child: Row(
+          children: [
+            Icon(icon, color: primary ? Colors.white : _teal),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: primary ? Colors.white : _navy,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: primary ? Colors.white70 : _muted,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: primary ? Colors.white : _muted,
+            ),
+          ],
+        ),
       ),
     ),
   );
