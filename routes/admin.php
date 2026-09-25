@@ -23,6 +23,7 @@ use App\Http\Controllers\admin\SoftwareUpdateController;
 use App\Http\Controllers\admin\DocumentOcrController;
 use App\Http\Controllers\admin\AccessControlController;
 use App\Http\Controllers\admin\SmartlockController;
+use App\Http\Controllers\admin\CompanyDocumentController;
 
 
 
@@ -47,6 +48,11 @@ Route::put('/settings', [SettingsController::class, 'update'])->name('settings.u
 Route::get('/software-update', [SoftwareUpdateController::class, 'index'])->name('software-update.index');
 Route::post('/software-update', [SoftwareUpdateController::class, 'update'])->name('software-update.run');
 Route::post('/document-ocr', [DocumentOcrController::class, 'scan'])->name('document-ocr.scan');
+Route::get('/company-documents', [CompanyDocumentController::class, 'index'])->name('company-documents.index');
+Route::post('/company-documents', [CompanyDocumentController::class, 'store'])->name('company-documents.store');
+Route::put('/company-documents/{document}', [CompanyDocumentController::class, 'update'])->name('company-documents.update');
+Route::get('/company-documents/{document}/download', [CompanyDocumentController::class, 'download'])->name('company-documents.download');
+Route::delete('/company-documents/{document}', [CompanyDocumentController::class, 'destroy'])->name('company-documents.destroy');
 
 // AdminAccounting Routes
 Route::get('/accounting', [AccountingController::class, 'dashboard'])->name('accounting.dashboard');

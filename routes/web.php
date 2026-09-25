@@ -50,6 +50,9 @@ Route::get('/guest/bookings/{reference}/invoices/{invoice}/payments', [GuestPort
 Route::get('/guest/bookings/{reference}/invoices/{invoice}/confirmation', [GuestPortalController::class, 'invoiceConfirmation'])->name('guest.booking.invoice-confirmation');
 Route::get('/webhooks/whatsapp', [WhatsappWebhookController::class, 'verify'])->name('webhooks.whatsapp.verify');
 Route::post('/webhooks/whatsapp', [WhatsappWebhookController::class, 'receive'])->name('webhooks.whatsapp.receive');
+Route::get('/inspection-reports/{inspection}', [\App\Http\Controllers\admin\inspections\InspectionController::class, 'pdf'])
+    ->middleware('signed')
+    ->name('inspection.shared-pdf');
 
 // Include separate route files
 require __DIR__.'/admin.php';

@@ -157,4 +157,60 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('empty list draft does not crash an inspection', (tester) async {
+    final task = {
+      'id': 'task-safe-draft',
+      'number': 'TSK-SAFE-01',
+      'title': 'Routine inspection',
+      'type': 'inspection',
+      'status': 'accepted',
+      'status_label': 'Accepted',
+      'building': 'Mirecal Tower',
+      'property': '2505',
+      'activities': <Map<String, dynamic>>[],
+    };
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NativeFieldApp(
+          user: const {'id': 'u-1', 'name': 'Ahmed', 'role': 'maintainer'},
+          request: (method, path, [data]) async {
+            if (path.endsWith('/task-safe-draft/inspection')) {
+              return {
+                'inspection': {
+                  'id': 'inspection-1',
+                  'draft': <dynamic>[],
+                  'items': [
+                    {
+                      'id': 'item-1',
+                      'area': 'Living room',
+                      'name': 'Walls',
+                      'photos': <dynamic>[],
+                    },
+                  ],
+                  'inventory': <dynamic>[],
+                },
+              };
+            }
+            if (path.endsWith('/task-safe-draft')) return {'task': task};
+            return {
+              'tasks': [task],
+            };
+          },
+          upload: (path, fields, file, [extras]) async => {},
+          signOut: () async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('All tasks'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('TSK-SAFE-01').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue inspection'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Living room'), findsOneWidget);
+    expect(find.textContaining('is not a subtype'), findsNothing);
+  });
 }

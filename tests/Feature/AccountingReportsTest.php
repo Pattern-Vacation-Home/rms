@@ -7,6 +7,7 @@ use App\Models\AccountingEntry;
 use App\Models\BankAccount;
 use App\Models\Booking;
 use App\Models\BookingInvoice;
+use App\Models\BookingInvoicePayment;
 use App\Models\Property;
 use App\Models\LandlordAccountEntry;
 use App\Models\User;
@@ -20,7 +21,7 @@ class AccountingReportsTest extends TestCase
     public function test_report_categories_group_tables_and_preserve_the_selected_period(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin']));
-        foreach (['financial', 'receivables', 'expenses', 'utilities'] as $tab) {
+        foreach (['financial', 'receivables', 'agency', 'expenses', 'utilities'] as $tab) {
             $response = $this->get(route('admin.accounting.reports', ['report' => $tab, 'date_from' => '2026-08-01', 'date_to' => '2026-08-31']))
                 ->assertOk()->assertSee('Accounting Reports')->assertSee('Reporting Period')
                 ->assertSee('Expense Register &amp; Downloads', false);
@@ -30,7 +31,7 @@ class AccountingReportsTest extends TestCase
             libxml_clear_errors();
             libxml_use_internal_errors($previous);
             $xpath = new \DOMXPath($document);
-            $this->assertSame(4, $xpath->query('//section[@role="tabpanel"]')->length);
+            $this->assertSame(5, $xpath->query('//section[@role="tabpanel"]')->length);
             $this->assertStringContainsString('show active', $document->getElementById('report-panel-'.$tab)->getAttribute('class'));
             $this->assertSame('2026-08-01', $document->getElementById('reportFrom')->getAttribute('value'));
             $this->assertSame(1, $xpath->query('//*[@id="report-panel-receivables"]//*[@id="accounts-receivable"]')->length);
@@ -85,6 +86,44 @@ class AccountingReportsTest extends TestCase
             ->get(route('admin.accounting.bank-accounts'))
             ->assertOk()
             ->assertSee('AED 1,300.00');
+    }
+
+    public function test_agency_fee_report_splits_collected_fee_between_agent_and_company(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $owner = User::factory()->create(['role' => 'landlord']);
+        $agent = User::factory()->create(['role' => 'agent', 'name' => 'Commission Agent', 'agent_commission' => 20]);
+        $property = Property::create(['landlord_id' => $owner->id, 'name' => 'Unit AG-101', 'status' => 'vacant']);
+        $booking = Booking::create([
+            'property_id' => $property->id, 'agent_id' => $agent->id, 'agent_commission_percent' => 20,
+            'booking_reference' => 'BK-AGENCY-001', 'guest_name' => 'Agency Guest',
+            'guest_email' => 'agency@example.com', 'guest_phone' => '+971500000010',
+            'guest_passport_id_no' => 'PASS-AGENCY-1', 'check_in' => '2026-09-01',
+            'check_out' => '2026-10-01', 'agency_fee' => 1000, 'invoice_number' => 'BOOK-AGENCY-001',
+        ]);
+        $invoice = BookingInvoice::create([
+            'booking_id' => $booking->id, 'invoice_number' => 'INV-AGENCY-001',
+            'invoice_type' => 'original', 'issue_date' => '2026-09-01',
+            'fees' => ['Agency Fee' => 1000], 'total_amount' => 1000, 'status' => 'paid',
+        ]);
+        BookingInvoicePayment::create([
+            'booking_invoice_id' => $invoice->id, 'payment_date' => '2026-09-15',
+            'amount' => 1000, 'payment_method' => 'Bank Transfer',
+            'allocation' => ['agency' => 1000, 'agent_commission_percent' => 20,
+                'agent_commission' => 200, 'agency_company_share' => 800],
+        ]);
+
+        $this->actingAs($admin)->get(route('admin.accounting.reports', [
+            'report' => 'agency', 'date_from' => '2026-09-01', 'date_to' => '2026-09-30',
+        ]))->assertOk()
+            ->assertSee('Report For Agents')->assertSee('Report For Company')
+            ->assertSee('Commission Agent')->assertSee('BK-AGENCY-001')
+            ->assertSee('AED 1,000.00')->assertSee('AED 200.00')->assertSee('AED 800.00');
+
+        $this->actingAs($agent)->get(route('agent.dashboard'))
+            ->assertOk()->assertSee('My Agency Fee Report')
+            ->assertSee('Commission is calculated from agency fees actually collected, not from rent.')
+            ->assertSee('INV-AGENCY-001')->assertSee('AED 1,000.00')->assertSee('AED 200.00');
     }
 
     public function test_accounts_receivable_identifies_the_guest_booking_and_unit(): void

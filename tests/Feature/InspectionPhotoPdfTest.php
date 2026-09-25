@@ -10,6 +10,7 @@ use App\Support\MediaStorage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 class InspectionPhotoPdfTest extends TestCase
@@ -34,5 +35,22 @@ class InspectionPhotoPdfTest extends TestCase
         if ($path = getenv('INSPECTION_PDF_QA')) {
             file_put_contents($path, $response->getContent());
         }
+    }
+
+    public function test_signed_inspection_pdf_can_be_downloaded_without_a_second_login(): void
+    {
+        $owner = User::factory()->create(['role' => 'landlord']);
+        $unit = Property::create(['name' => '2505', 'landlord_id' => $owner->id]);
+        $inspection = BookingInspection::create([
+            'property_id' => $unit->id,
+            'inspection_number' => 'INSP-SIGNED-PDF',
+            'type' => 'routine',
+            'status' => 'submitted',
+            'submitted_at' => now(),
+        ]);
+        $url = URL::temporarySignedRoute('inspection.shared-pdf', now()->addMinutes(5), ['inspection' => $inspection]);
+
+        $this->get($url)->assertOk()->assertHeader('content-type', 'application/pdf');
+        $this->get(route('inspection.shared-pdf', $inspection))->assertForbidden();
     }
 }

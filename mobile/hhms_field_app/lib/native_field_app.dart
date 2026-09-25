@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 typedef FieldRequest =
     Future<Map<String, dynamic>> Function(
@@ -116,6 +117,33 @@ class _NativeFieldAppState extends State<NativeFieldApp> {
       ? value.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList()
       : [];
 
+  Map<String, dynamic> _map(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      return value.map((key, item) => MapEntry(key.toString(), item));
+    }
+    if (value is List && value.isNotEmpty) return _map(value.first);
+    return <String, dynamic>{};
+  }
+
+  String _friendlyError(Object error) {
+    final raw = error.toString().replaceFirst('Exception: ', '');
+    debugPrint('HHMS Field error: $raw');
+    final lower = raw.toLowerCase();
+    if (lower.contains('type cast') ||
+        lower.contains('is not a subtype') ||
+        lower.contains('unexpected data')) {
+      return 'Some inspection data could not be read. Refresh and try again.';
+    }
+    if (lower.contains('timed out') ||
+        lower.contains('socket') ||
+        lower.contains('network') ||
+        lower.contains('connection')) {
+      return 'Connection is slow or unavailable. Your saved work is safe; try again.';
+    }
+    return raw.isEmpty ? 'Something went wrong. Please try again.' : raw;
+  }
+
   Future<void> _run(Future<void> Function() action) async {
     if (_busy) return;
     setState(() {
@@ -126,7 +154,7 @@ class _NativeFieldAppState extends State<NativeFieldApp> {
       await action();
     } catch (e) {
       if (mounted) {
-        setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+        setState(() => _error = _friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -155,7 +183,7 @@ class _NativeFieldAppState extends State<NativeFieldApp> {
     );
     if (mounted) {
       setState(() {
-        _task = (response['task'] as Map).cast<String, dynamic>();
+        _task = _map(response['task']);
         _secondary.text = _task['due_date']?.toString() ?? '';
         _text.clear();
         _page = 'task';
@@ -168,7 +196,7 @@ class _NativeFieldAppState extends State<NativeFieldApp> {
       'GET',
       '/field/api/tasks/$_taskId/inspection',
     );
-    final inspection = (response['inspection'] as Map).cast<String, dynamic>();
+    final inspection = _map(response['inspection']);
     _conditions.clear();
     _comments.clear();
     _found.clear();
@@ -187,7 +215,7 @@ class _NativeFieldAppState extends State<NativeFieldApp> {
       _damaged[id] = row['draft_damaged']?.toString() ?? '';
       _inventoryNotes[id] = row['draft_notes']?.toString() ?? '';
     }
-    _notes.text = (inspection['draft'] as Map?)?['notes']?.toString() ?? '';
+    _notes.text = _map(inspection['draft'])['notes']?.toString() ?? '';
     if (mounted) {
       setState(() {
         _inspection = inspection;
@@ -262,10 +290,7 @@ class _NativeFieldAppState extends State<NativeFieldApp> {
       '/field/api/tasks/$_taskId/inspection',
     );
     if (mounted) {
-      setState(
-        () => _inspection = (response['inspection'] as Map)
-            .cast<String, dynamic>(),
-      );
+      setState(() => _inspection = _map(response['inspection']));
     }
   });
 
@@ -305,7 +330,16 @@ class _NativeFieldAppState extends State<NativeFieldApp> {
       'inventory': inventory,
       'notes': _notes.text,
     });
-    if (mounted) setState(() => _page = 'success');
+    final refreshed = await widget.request(
+      'GET',
+      '/field/api/tasks/$_taskId/inspection',
+    );
+    if (mounted) {
+      setState(() {
+        _inspection = _map(refreshed['inspection']);
+        _page = 'success';
+      });
+    }
   });
 
   Future<void> _openReview(Map<String, dynamic> inspection) => _run(() async {
@@ -315,7 +349,7 @@ class _NativeFieldAppState extends State<NativeFieldApp> {
     );
     if (mounted) {
       setState(() {
-        _inspection = (response['inspection'] as Map).cast<String, dynamic>();
+        _inspection = _map(response['inspection']);
         _page = 'ops_review';
       });
     }
@@ -355,6 +389,35 @@ class _NativeFieldAppState extends State<NativeFieldApp> {
   void _go(String page) => setState(() {
     _page = page;
     _error = null;
+  });
+
+  Future<void> _retry() async {
+    if (_page == 'task' && _taskId.isNotEmpty) {
+      await _openTask(_task);
+    } else if (const {
+          'rooms',
+          'checklist',
+          'inventory',
+          'review',
+        }.contains(_page) &&
+        _taskId.isNotEmpty) {
+      await _openInspection();
+    } else if (_page == 'ops_review' && _inspectionId.isNotEmpty) {
+      await _openReview(_inspection);
+    } else {
+      await _refresh();
+    }
+  }
+
+  Future<void> _openInspectionPdf() => _run(() async {
+    final value = _inspection['pdf_url'] ?? _task['pdf_url'];
+    final uri = Uri.tryParse(value?.toString() ?? '');
+    if (uri == null || !uri.hasScheme) {
+      throw Exception('The PDF is not ready yet. Refresh after submission.');
+    }
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      throw Exception('Could not open the inspection PDF.');
+    }
   });
 
   @override
@@ -440,11 +503,23 @@ class _NativeFieldAppState extends State<NativeFieldApp> {
             if (_error != null)
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
                 color: const Color(0xFFFFE8E8),
-                child: Text(
-                  _error!,
-                  style: const TextStyle(color: Color(0xFF9E3030)),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline, color: Color(0xFF9E3030)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(color: Color(0xFF9E3030)),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _busy ? null : _retry,
+                      child: const Text('Retry'),
+                    ),
+                  ],
                 ),
               ),
             Expanded(
@@ -553,6 +628,10 @@ class _NativeFieldAppState extends State<NativeFieldApp> {
         Icons.check_circle_outline,
         'Inspection submitted. Operations can now review it.',
       ),
+      const SizedBox(height: 16),
+      if ((_inspection['pdf_url'] ?? '').toString().isNotEmpty)
+        _button('Download inspection PDF', _openInspectionPdf),
+      _button('Back to my tasks', () => _go('tasks'), secondary: true),
     ],
     'timeline' => _timeline(),
     'update' => _updatePage(),
@@ -721,6 +800,14 @@ class _NativeFieldAppState extends State<NativeFieldApp> {
         ),
       ],
       _heading('History'),
+      if (closed && (_task['pdf_url'] ?? '').toString().isNotEmpty)
+        _actionCard(
+          'Download inspection PDF',
+          'Completed checklist, notes and photo thumbnails',
+          Icons.picture_as_pdf_outlined,
+          _openInspectionPdf,
+          primary: true,
+        ),
       _actionCard(
         'View timeline',
         '${_maps(_task['activities']).length} recorded updates',
@@ -1206,6 +1293,10 @@ class _NativeFieldAppState extends State<NativeFieldApp> {
     ),
     if ((_inspection['notes'] ?? '').toString().isNotEmpty)
       _info('Notes', _inspection['notes']),
+    if ((_inspection['pdf_url'] ?? '').toString().isNotEmpty) ...[
+      const SizedBox(height: 12),
+      _button('Download PDF report', _openInspectionPdf),
+    ],
     const SizedBox(height: 14),
     _heading('Checklist'),
     ..._maps(_inspection['items']).map(
@@ -1697,7 +1788,11 @@ class _NativeFieldAppState extends State<NativeFieldApp> {
     ),
   );
 
-  Widget _button(String label, VoidCallback onTap) => Padding(
+  Widget _button(
+    String label,
+    VoidCallback onTap, {
+    bool secondary = false,
+  }) => Padding(
     padding: const EdgeInsets.only(top: 8, bottom: 8),
     child: SizedBox(
       width: double.infinity,
@@ -1705,8 +1800,9 @@ class _NativeFieldAppState extends State<NativeFieldApp> {
       child: ElevatedButton(
         onPressed: _busy ? null : onTap,
         style: ElevatedButton.styleFrom(
-          backgroundColor: _teal,
-          foregroundColor: Colors.white,
+          backgroundColor: secondary ? Colors.white : _teal,
+          foregroundColor: secondary ? _navy : Colors.white,
+          side: secondary ? const BorderSide(color: Color(0xFFD8E3E6)) : null,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),

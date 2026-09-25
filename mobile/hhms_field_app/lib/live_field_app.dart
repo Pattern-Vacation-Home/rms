@@ -52,6 +52,15 @@ class _LiveFieldScreenState extends State<LiveFieldScreen> {
   final Map<int, Completer<Map<String, dynamic>>> _requests = {};
   int _requestId = 0;
 
+  Map<String, dynamic> _jsonMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      return value.map((key, item) => MapEntry(key.toString(), item));
+    }
+    if (value is List && value.isNotEmpty) return _jsonMap(value.first);
+    return <String, dynamic>{};
+  }
+
   @override
   void initState() {
     super.initState();
@@ -302,7 +311,7 @@ class _LiveFieldScreenState extends State<LiveFieldScreen> {
             : (result['error'] ?? 'Request failed ($status)'),
       );
     }
-    return (result['body'] as Map?)?.cast<String, dynamic>() ?? {};
+    return _jsonMap(result['body']);
   }
 
   Future<Map<String, dynamic>> _upload(
@@ -376,12 +385,12 @@ class _LiveFieldScreenState extends State<LiveFieldScreen> {
     final status = result['status'] as int? ?? 0;
     if (status < 200 || status >= 300) {
       throw Exception(
-        (result['body'] as Map?)?['message'] ??
+        _jsonMap(result['body'])['message'] ??
             result['error'] ??
             'Photo upload failed',
       );
     }
-    return (result['body'] as Map?)?.cast<String, dynamic>() ?? {};
+    return _jsonMap(result['body']);
   }
 
   Future<void> _startNative() async {
@@ -389,7 +398,7 @@ class _LiveFieldScreenState extends State<LiveFieldScreen> {
       final data = await _api('GET', '/field/api/bootstrap');
       if (!mounted) return;
       setState(() {
-        _user = (data['user'] as Map).cast<String, dynamic>();
+        _user = _jsonMap(data['user']);
         _native = true;
       });
     } catch (_) {

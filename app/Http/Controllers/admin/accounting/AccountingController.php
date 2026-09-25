@@ -9,6 +9,7 @@ use App\Models\BankAccount;
 use App\Models\BankTransfer;
 use App\Models\Booking;
 use App\Models\BookingInvoice;
+use App\Models\BookingInvoicePayment;
 use App\Models\Expense;
 use App\Models\ExpenseAudit;
 use App\Models\LandlordAccountEntry;
@@ -947,6 +948,60 @@ class AccountingController extends Controller
             'expense_date',
             'gross_amount'
         );
+        $agencyFeeRows = BookingInvoicePayment::with([
+            'invoice.booking.agent',
+            'invoice.booking.property.building',
+        ])
+            ->whereNull('reversed_at')
+            ->whereBetween('payment_date', [$from, $to])
+            ->orderByDesc('payment_date')
+            ->get()
+            ->map(function (BookingInvoicePayment $payment) {
+                $allocation = $payment->allocation ?? [];
+                $agencyFee = round((float) ($allocation['agency'] ?? 0), 2);
+                if ($agencyFee <= 0) return null;
+
+                $booking = $payment->invoice?->booking;
+                $rate = (float) ($allocation['agent_commission_percent']
+                    ?? $booking?->agent_commission_percent
+                    ?? $booking?->agent?->agent_commission
+                    ?? 0);
+                $agentCommission = round((float) ($allocation['agent_commission']
+                    ?? ($booking?->agent_id ? $agencyFee * $rate / 100 : 0)), 2);
+                $companyShare = round((float) ($allocation['agency_company_share']
+                    ?? ($agencyFee - $agentCommission)), 2);
+
+                return [
+                    'payment' => $payment, 'invoice' => $payment->invoice, 'booking' => $booking,
+                    'agent' => $booking?->agent, 'agency_fee' => $agencyFee,
+                    'commission_rate' => $booking?->agent_id ? $rate : 0,
+                    'agent_commission' => $agentCommission, 'company_share' => $companyShare,
+                ];
+            })
+            ->filter()
+            ->values();
+        $agencyFeeTotals = [
+            'receipts' => $agencyFeeRows->count(),
+            'collected' => $agencyFeeRows->sum('agency_fee'),
+            'agent_commission' => $agencyFeeRows->sum('agent_commission'),
+            'company_share' => $agencyFeeRows->sum('company_share'),
+        ];
+        $agencyFeeByAgent = $agencyFeeRows
+            ->filter(fn ($row) => $row['agent'])
+            ->groupBy(fn ($row) => $row['agent']->id)
+            ->map(function ($rows) {
+                $first = $rows->first();
+
+                return [
+                    'agent' => $first['agent'], 'receipts' => $rows->count(),
+                    'bookings' => $rows->pluck('booking.id')->filter()->unique()->count(),
+                    'agency_fee' => $rows->sum('agency_fee'),
+                    'commission' => $rows->sum('agent_commission'),
+                    'company_share' => $rows->sum('company_share'),
+                ];
+            })
+            ->sortByDesc('commission')
+            ->values();
         $expenseCategories = Expense::CATEGORIES;
 
         return view('admin.accounting.reports', compact(
@@ -969,6 +1024,9 @@ class AccountingController extends Controller
             , 'receivableRows'
             , 'ownerReceivableRows'
             , 'payableAgeing'
+            , 'agencyFeeRows'
+            , 'agencyFeeTotals'
+            , 'agencyFeeByAgent'
             , 'expenseCategories'
         ));
     }

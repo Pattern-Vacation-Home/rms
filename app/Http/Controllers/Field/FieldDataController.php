@@ -13,6 +13,7 @@ use App\Support\MediaStorage;
 use App\Support\UnitInventory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\URL;
 
 class FieldDataController extends Controller
 {
@@ -69,7 +70,8 @@ class FieldDataController extends Controller
                 'type' => $inspection->type_label,
                 'status' => $inspection->status,
                 'revision' => (int) $inspection->draft_revision,
-                'draft' => $draft,
+                'draft' => (object) $draft,
+                'pdf_url' => $this->inspectionPdfUrl($inspection),
                 'items' => $inspection->items->map(fn ($item) => [
                     'id' => $item->id, 'area' => $item->area, 'name' => $item->item,
                     'condition' => data_get($draft, 'items.'.$item->id.'.condition'),
@@ -138,6 +140,7 @@ class FieldDataController extends Controller
             'property' => $property?->name,
             'building' => $property?->building?->building_name,
             'inspection_id' => $task->inspection?->id,
+            'pdf_url' => $task->inspection ? $this->inspectionPdfUrl($task->inspection) : null,
         ];
     }
 
@@ -158,6 +161,20 @@ class FieldDataController extends Controller
             'total_items' => $inspection->total_items,
             'good_items' => $inspection->good_items,
             'issue_items' => $inspection->issue_items,
+            'pdf_url' => $this->inspectionPdfUrl($inspection),
         ];
+    }
+
+    private function inspectionPdfUrl(BookingInspection $inspection): ?string
+    {
+        if ($inspection->status !== 'submitted' && ! $inspection->submitted_at) {
+            return null;
+        }
+
+        return URL::temporarySignedRoute(
+            'inspection.shared-pdf',
+            now()->addMinutes(30),
+            ['inspection' => $inspection->id],
+        );
     }
 }

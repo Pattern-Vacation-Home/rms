@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Agents;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Models\BookingInvoicePayment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -17,8 +18,35 @@ class AgentController extends Controller
             ->get();
         $paidBookings = $bookings->where('invoice_status', 'paid');
         $commissionPercent = (float) (Auth::user()->agent_commission ?? 0);
-        $estimatedCommission = round($paidBookings->sum('rent_amount') * ($commissionPercent / 100), 2);
+        $commissionRows = BookingInvoicePayment::with(['invoice.booking.property'])
+            ->whereNull('reversed_at')
+            ->whereHas('invoice.booking', fn ($query) => $query->where('agent_id', Auth::id()))
+            ->latest('payment_date')
+            ->get()
+            ->map(function (BookingInvoicePayment $payment) use ($commissionPercent) {
+                $allocation = $payment->allocation ?? [];
+                $agencyFee = round((float) ($allocation['agency'] ?? 0), 2);
+                if ($agencyFee <= 0) return null;
 
-        return view('agent.dashboard.index', compact('bookings', 'paidBookings', 'commissionPercent', 'estimatedCommission'));
+                $booking = $payment->invoice?->booking;
+                $rate = (float) ($allocation['agent_commission_percent']
+                    ?? $booking?->agent_commission_percent
+                    ?? $commissionPercent);
+
+                return [
+                    'payment' => $payment, 'invoice' => $payment->invoice, 'booking' => $booking,
+                    'agency_fee' => $agencyFee, 'rate' => $rate,
+                    'commission' => round((float) ($allocation['agent_commission'] ?? $agencyFee * $rate / 100), 2),
+                ];
+            })
+            ->filter()
+            ->values();
+        $collectedAgencyFees = $commissionRows->sum('agency_fee');
+        $earnedCommission = $commissionRows->sum('commission');
+
+        return view('agent.dashboard.index', compact(
+            'bookings', 'paidBookings', 'commissionPercent', 'commissionRows',
+            'collectedAgencyFees', 'earnedCommission'
+        ));
     }
 }

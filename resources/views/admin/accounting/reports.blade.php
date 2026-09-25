@@ -3,7 +3,7 @@
 @section('content')
 @include('admin.accounting.partials.module-nav')
 @php
-    $reportTabs = ['financial' => 'Financial Summary', 'receivables' => 'Receivables', 'expenses' => 'Expenses', 'utilities' => 'Utilities'];
+    $reportTabs = ['financial' => 'Financial Summary', 'receivables' => 'Receivables', 'agency' => 'Agency Fee', 'expenses' => 'Expenses', 'utilities' => 'Utilities'];
     $activeReport = array_key_exists(request('report', 'financial'), $reportTabs) ? request('report', 'financial') : 'financial';
     $periodQuery = ['date_from' => $from->toDateString(), 'date_to' => $to->toDateString()];
 @endphp
@@ -136,6 +136,59 @@
 </div>
 
 
+</section>
+<section id="report-panel-agency" class="tab-pane {{ $activeReport==='agency'?'show active':'' }}" role="tabpanel" aria-labelledby="report-tab-agency" tabindex="0">
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div><h4 class="mb-1">Agency Fee Allocation</h4><p class="small text-muted mb-0">Based on agency-fee amounts allocated from actual guest receipts in the selected payment period—not unpaid invoice estimates.</p></div>
+    <span class="badge bg-success-subtle text-success border px-3 py-2">{{ $agencyFeeTotals['receipts'] }} payment allocation(s)</span>
+</div>
+<div class="row g-3 mb-3">
+    @foreach([
+        ['Agency fee collected', $agencyFeeTotals['collected'], 'ri-hand-coin-line', 'primary'],
+        ['Agent commission payable', $agencyFeeTotals['agent_commission'], 'ri-user-star-line', 'warning'],
+        ['Company agency income', $agencyFeeTotals['company_share'], 'ri-building-4-line', 'success'],
+    ] as [$label, $amount, $icon, $color])
+    <div class="col-lg-4"><div class="card h-100 mb-0 agency-summary-card"><div class="card-body d-flex align-items-center justify-content-between gap-3"><div><small class="text-muted">{{ $label }}</small><h4 class="my-2 text-{{ $color }}">AED {{ number_format((float)$amount,2) }}</h4><small class="text-muted">{{ $from->format('d M') }} — {{ $to->format('d M Y') }}</small></div><span class="avatar-lg rounded-circle bg-{{ $color }}-subtle text-{{ $color }} d-inline-flex align-items-center justify-content-center"><i class="{{ $icon }} fs-26"></i></span></div></div></div>
+    @endforeach
+</div>
+<div class="row g-3">
+    <div class="col-xl-5">
+        <div class="card h-100 mb-0">
+            <div class="card-header"><div><h4 class="card-title mb-1">Report For Agents</h4><small class="text-muted">Commission earned from collected agency fees</small></div></div>
+            <div class="table-responsive"><table class="table table-hover align-middle mb-0">
+                <thead class="bg-light-subtle"><tr><th>Agent</th><th class="text-center">Bookings</th><th class="text-end">Fee Collected</th><th class="text-end">Commission</th></tr></thead>
+                <tbody>
+                @forelse($agencyFeeByAgent as $row)
+                    <tr><td><strong>{{ $row['agent']->name }}</strong><br><small class="text-muted">{{ $row['receipts'] }} receipt allocation(s)</small></td><td class="text-center">{{ $row['bookings'] }}</td><td class="text-end">AED {{ number_format((float)$row['agency_fee'],2) }}</td><td class="text-end fw-bold text-warning">AED {{ number_format((float)$row['commission'],2) }}</td></tr>
+                @empty<tr><td colspan="4" class="text-center text-muted py-4">No agent commission was collected in this period.</td></tr>@endforelse
+                </tbody>
+                <tfoot class="table-light fw-bold"><tr><td colspan="3">Total Agent Commission Payable</td><td class="text-end">AED {{ number_format((float)$agencyFeeTotals['agent_commission'],2) }}</td></tr></tfoot>
+            </table></div>
+        </div>
+    </div>
+    <div class="col-xl-7">
+        <div class="card h-100 mb-0">
+            <div class="card-header"><div><h4 class="card-title mb-1">Report For Company</h4><small class="text-muted">Every collected agency fee and the company’s retained share</small></div></div>
+            <div class="table-responsive"><table class="table table-hover align-middle mb-0">
+                <thead class="bg-light-subtle"><tr><th>Date / Invoice</th><th>Booking &amp; Unit</th><th>Agent</th><th class="text-end">Agency Fee</th><th class="text-end">Agent</th><th class="text-end">Company</th></tr></thead>
+                <tbody>
+                @forelse($agencyFeeRows as $row)
+                    @php($booking = $row['booking'])
+                    <tr>
+                        <td>{{ $row['payment']->payment_date?->format('d M Y') }}<br><small class="text-muted">{{ $row['invoice']?->invoice_number ?? '-' }}</small></td>
+                        <td>@if($booking)<a href="{{ route('admin.booking.show',$booking) }}" class="fw-semibold">{{ $booking->booking_reference }}</a><br><small class="text-muted">{{ $booking->property?->building?->building_name ?? $booking->property?->building?->name ?? 'Building' }} · {{ $booking->property?->name ?? 'Unit' }}</small>@else - @endif</td>
+                        <td>{{ $row['agent']?->name ?? 'Direct / no agent' }}<br><small class="text-muted">{{ number_format((float)$row['commission_rate'],2) }}%</small></td>
+                        <td class="text-end">AED {{ number_format((float)$row['agency_fee'],2) }}</td>
+                        <td class="text-end text-warning">AED {{ number_format((float)$row['agent_commission'],2) }}</td>
+                        <td class="text-end fw-bold text-success">AED {{ number_format((float)$row['company_share'],2) }}</td>
+                    </tr>
+                @empty<tr><td colspan="6" class="text-center text-muted py-4">No collected agency fees in this period.</td></tr>@endforelse
+                </tbody>
+                <tfoot class="table-light fw-bold"><tr><td colspan="3">Totals</td><td class="text-end">AED {{ number_format((float)$agencyFeeTotals['collected'],2) }}</td><td class="text-end">AED {{ number_format((float)$agencyFeeTotals['agent_commission'],2) }}</td><td class="text-end text-success">AED {{ number_format((float)$agencyFeeTotals['company_share'],2) }}</td></tr></tfoot>
+            </table></div>
+        </div>
+    </div>
+</div>
 </section>
 <section id="report-panel-expenses" class="tab-pane {{ $activeReport==='expenses'?'show active':'' }}" role="tabpanel" aria-labelledby="report-tab-expenses" tabindex="0">
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3"><p class="small text-muted mb-0">Selected-period expenses, including drafts and review items; rejected expenses excluded.</p><a class="btn btn-sm btn-outline-primary" href="{{ route('admin.accounting.expenses', $periodQuery) }}">Expense Register &amp; Downloads</a></div><div class="row">
@@ -302,6 +355,7 @@
 .reports-hub thead{position:sticky;top:0;z-index:1;background:var(--bs-body-bg,#fff)}
 .reports-hub .card-title{font-size:16px}
 .reports-hub .table td,.reports-hub .table th{padding:12px 16px}
+.agency-summary-card{background:linear-gradient(145deg,var(--bs-body-bg,#fff),#f7f9ff)}
 @media print{.reports-hub .tab-pane{display:block!important}.reports-hub .table-responsive{max-height:none;overflow:visible}.reports-hub form,.reports-tabs{display:none}}
 </style>
 @endpush
